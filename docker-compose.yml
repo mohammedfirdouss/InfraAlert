@@ -1,0 +1,151 @@
+networks:
+  infra-network:
+    driver: bridge
+
+services:
+
+  mcp-server:
+    build:
+      context: ./mcp_server
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    networks:
+      - infra-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # Build context is ./agents so the shared/ package is accessible in each Dockerfile
+  issue-detection:
+    build:
+      context: ./agents
+      dockerfile: issue_detection/Dockerfile
+    ports:
+      - "8081:8081"
+    env_file:
+      - .env
+    networks:
+      - infra-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  priority-analysis:
+    build:
+      context: ./agents
+      dockerfile: priority_analysis/Dockerfile
+    ports:
+      - "8082:8082"
+    env_file:
+      - .env
+    networks:
+      - infra-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  resource-coordination:
+    build:
+      context: ./agents
+      dockerfile: resource_coordination/Dockerfile
+    ports:
+      - "8083:8083"
+    env_file:
+      - .env
+    networks:
+      - infra-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  platform-integration:
+    build:
+      context: ./agents
+      dockerfile: platform_integration/Dockerfile
+    ports:
+      - "8084:8084"
+    env_file:
+      - .env
+    networks:
+      - infra-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8084/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  orchestrator:
+    build:
+      context: ./agents
+      dockerfile: orchestrator/Dockerfile
+    ports:
+      - "8085:8085"
+    env_file:
+      - .env
+    environment:
+      - ISSUE_DETECTION_URL=http://issue-detection:8081
+      - PRIORITY_ANALYSIS_URL=http://priority-analysis:8082
+      - RESOURCE_COORDINATION_URL=http://resource-coordination:8083
+      - PLATFORM_INTEGRATION_URL=http://platform-integration:8084
+    networks:
+      - infra-network
+    depends_on:
+      mcp-server:
+        condition: service_healthy
+      issue-detection:
+        condition: service_healthy
+      priority-analysis:
+        condition: service_healthy
+      resource-coordination:
+        condition: service_healthy
+      platform-integration:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8085/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  webapp:
+    build:
+      context: ./webapp
+      dockerfile: Dockerfile
+    ports:
+      - "3000:8000"
+    env_file:
+      - .env
+    networks:
+      - infra-network
+    depends_on:
+      orchestrator:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s

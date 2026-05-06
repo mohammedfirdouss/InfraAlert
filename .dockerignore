@@ -1,0 +1,41 @@
+# Secrets — must never end up in an image layer
+.env
+credentials/
+*.pem
+*.key
+service-account*.json
+
+# Version control
+.git/
+.gitignore
+
+# Python caches and build artefacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.mypy_cache/
+.pytest_cache/
+dist/
+build/
+*.egg-info/
+.venv/
+venv/
+
+# Node / frontend
+node_modules/
+webapp/frontend/dist/
+webapp/frontend/build/
+npm-debug.log*
+yarn-error.log*
+
+# macOS metadata
+.DS_Store
+
+# Editor / IDE
+.vscode/
+.idea/
+
+# CI / documentation artefacts
+*.md
+docs/
