@@ -31,7 +31,7 @@ REGION ?= us-central1
 .PHONY: help install-dev check lint format test \
         docker-up docker-down build-all \
         deploy-all deploy-service \
-        setup-tools clean
+        setup-tools setup-gcloud clean
 
 help: ## Print all targets with descriptions
 	@echo ""
@@ -117,12 +117,24 @@ endif
 		--allow-unauthenticated \
 		--env-vars-file .env
 
-setup-tools: ## Run scripts/setup-uv.sh and scripts/setup-gcloud.sh
+setup-tools: ## Install local toolchain (uv; gcloud optional)
 	@echo "==> Setting up toolchain …"
 	chmod +x scripts/setup-uv.sh scripts/setup-gcloud.sh scripts/setup-env.sh
 	bash scripts/setup-uv.sh
-	bash scripts/setup-gcloud.sh
+	@if command -v gcloud >/dev/null 2>&1; then \
+		echo "==> gcloud detected; running Cloud SDK setup …"; \
+		bash scripts/setup-gcloud.sh; \
+	else \
+		echo "==> gcloud not found — skipping Cloud SDK setup (local dev unaffected)."; \
+		echo "   Install from: https://cloud.google.com/sdk/docs/install"; \
+		echo "   Then run: make setup-gcloud"; \
+	fi
 	@echo "==> Toolchain setup complete."
+
+setup-gcloud: ## Configure Google Cloud CLI/auth for deployment tasks
+	@echo "==> Running Cloud SDK setup …"
+	chmod +x scripts/setup-gcloud.sh
+	bash scripts/setup-gcloud.sh
 
 clean: ## Remove __pycache__, .pytest_cache, dist directories
 	@echo "==> Cleaning build artefacts …"

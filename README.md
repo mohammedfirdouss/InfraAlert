@@ -22,22 +22,6 @@ Main API entrypoints:
 - Orchestrator: `POST /process-report`, `GET /status/<report_id>`, `GET /health`
 - Agent services expose health endpoints and task-specific routes (`/analyze`, `/coordinate`, `/notify`, etc.)
 
-## Repository layout
-
-```text
-agents/
-  issue_detection/
-  priority_analysis/
-  resource_coordination/
-  platform_integration/
-  orchestrator/
-  shared/
-mcp_server/
-webapp/
-  backend/
-scripts/
-```
-
 ## Local development
 
 1. Copy environment variables:
@@ -72,6 +56,7 @@ make check    # lint + mypy + pytest
 Cloud Run helper targets are included:
 
 ```bash
+make setup-gcloud
 make deploy-service SERVICE=orchestrator
 make deploy-all
 ```
