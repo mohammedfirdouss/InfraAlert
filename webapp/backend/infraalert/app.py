@@ -13,6 +13,8 @@ from infraalert.citizen import api as citizen_api
 from infraalert.config import Settings
 from infraalert.deps import Deps, build_deps
 from infraalert.processing import api as processing_api
+from infraalert.staff import api as staff_api
+from infraalert.staff import admin_api as staff_admin_api
 from infraalert.storage import LocalPhotoStorage
 
 # The built frontend: next to the backend in the Docker image (/app/frontend/dist),
@@ -43,6 +45,8 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         return {"status": "ok"}
 
     app.include_router(citizen_api.router)
+    app.include_router(staff_api.router)
+    app.include_router(staff_admin_api.router)
     if deps.task_auth is not None:
         app.include_router(processing_api.router)
     if isinstance(deps.storage, LocalPhotoStorage):
