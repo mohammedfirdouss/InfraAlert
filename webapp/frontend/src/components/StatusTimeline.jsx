@@ -26,7 +26,7 @@ const STEP_HINTS = {
  * down an asphalt bar (the vertical twin of the header's lane strip).
  */
 const LANE_MARKING = {
-  backgroundImage: 'repeating-linear-gradient(180deg, #ffd60a 0 8px, transparent 8px 14px)',
+  backgroundImage: 'repeating-linear-gradient(180deg, #ffd60a 0 7px, transparent 7px 13px)',
   backgroundSize: '2px 100%',
   backgroundPosition: 'center',
   backgroundRepeat: 'no-repeat',
@@ -113,12 +113,12 @@ export default function StatusTimeline({ status }) {
             key={step.status}
             data-state={state}
             aria-current={state === 'current' ? 'step' : undefined}
-            className="relative flex gap-4 pb-6 last:pb-0"
+            className="relative flex gap-4 pb-10 last:pb-0"
           >
             {!isLast && (
               <span
                 aria-hidden="true"
-                className={`absolute left-4 top-9 bottom-1 w-2 -translate-x-1/2 rounded-full ${
+                className={`absolute left-4 top-8 bottom-0 w-2.5 -translate-x-1/2 ${
                   state === 'done' ? 'bg-asphalt-800' : 'bg-concrete-300'
                 }`}
                 style={state === 'done' ? LANE_MARKING : undefined}
@@ -127,7 +127,7 @@ export default function StatusTimeline({ status }) {
 
             <span
               aria-hidden="true"
-              className={`relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${station}`}
+              className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${station}`}
             >
               {state === 'done' || arrived ? (
                 <Check size={16} strokeWidth={3} />
