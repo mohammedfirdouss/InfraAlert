@@ -42,13 +42,22 @@ class Settings:
     gcp_location: str | None = None
     gemini_model: str | None = None
 
+    # "dev" (local development) accepts "dev:<email>" tokens; never in production.
+    staff_auth_backend: Literal["identity_platform", "dev"] = "dev"
+    # Restrict staff sign-in to one Identity Platform provider, e.g. "oidc.city-sso".
+    staff_sign_in_provider: str | None = None
+
     @classmethod
     def from_env(cls) -> Settings:
         storage = _choice("STORAGE_BACKEND", "local", ("gcs", "local"))
         tasks = _choice("TASKS_BACKEND", "inline", ("inline", "cloud_tasks"))
         extractor = _choice("EXTRACTOR_BACKEND", "disabled", ("vertex", "disabled"))
+        staff_auth = _choice("STAFF_AUTH_BACKEND", "dev", ("identity_platform", "dev"))
         cloud = tasks == "cloud_tasks"
         vertex = extractor == "vertex"
+        if staff_auth == "dev" and cloud:
+            raise RuntimeError("STAFF_AUTH_BACKEND=dev is for local development only")
+        identity_platform = staff_auth == "identity_platform"
         return cls(
             database_url=_require("DATABASE_URL"),
             turnstile_secret_key=_require("TURNSTILE_SECRET_KEY"),
@@ -64,9 +73,13 @@ class Settings:
             service_url=_require("SERVICE_URL").rstrip("/") if cloud else None,
             tasks_service_account=_require("TASKS_SERVICE_ACCOUNT") if cloud else None,
             extractor_backend=cast(Literal["vertex", "disabled"], extractor),
-            gcp_project=_require("GOOGLE_CLOUD_PROJECT") if vertex else None,
+            gcp_project=(
+                _require("GOOGLE_CLOUD_PROJECT") if vertex or identity_platform else None
+            ),
             gcp_location=_require("GOOGLE_CLOUD_REGION") if vertex else None,
             gemini_model=_require("GEMINI_MODEL") if vertex else None,
+            staff_auth_backend=cast(Literal["identity_platform", "dev"], staff_auth),
+            staff_sign_in_provider=os.getenv("STAFF_SIGN_IN_PROVIDER") or None,
         )
 
 

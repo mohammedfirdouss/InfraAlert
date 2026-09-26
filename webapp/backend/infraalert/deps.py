@@ -14,6 +14,11 @@ from infraalert.db.session import make_engine, make_sessionmaker
 from infraalert.processing.auth import GoogleOidcVerifier, TaskCallerVerifier
 from infraalert.processing.extraction import DisabledExtractor, Extractor, VertexExtractor
 from infraalert.processing.worker import Processor
+from infraalert.staff.identity import (
+    DevVerifier,
+    IdentityPlatformVerifier,
+    StaffTokenVerifier,
+)
 from infraalert.storage import GcsPhotoStorage, LocalPhotoStorage, PhotoStorage
 from infraalert.tasks import CloudTasksQueue, InlineTaskQueue, TaskQueue
 
@@ -28,6 +33,7 @@ class Deps:
     processor: Processor | None = None
     # Set only when tasks arrive over HTTP (TASKS_BACKEND=cloud_tasks).
     task_auth: TaskCallerVerifier | None = None
+    staff_auth: StaffTokenVerifier | None = None
 
 
 def build_deps(settings: Settings) -> Deps:
@@ -62,6 +68,15 @@ def build_deps(settings: Settings) -> Deps:
     else:
         tasks = InlineTaskQueue(processor.process)
 
+    staff_auth: StaffTokenVerifier
+    if settings.staff_auth_backend == "identity_platform":
+        assert settings.gcp_project
+        staff_auth = IdentityPlatformVerifier(
+            settings.gcp_project, settings.staff_sign_in_provider
+        )
+    else:
+        staff_auth = DevVerifier()
+
     return Deps(
         settings=settings,
         sessions=sessions,
@@ -70,6 +85,7 @@ def build_deps(settings: Settings) -> Deps:
         tasks=tasks,
         processor=processor,
         task_auth=task_auth,
+        staff_auth=staff_auth,
     )
 
 
