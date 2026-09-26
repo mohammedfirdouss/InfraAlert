@@ -6,9 +6,6 @@
  * local development under its usage policy, and address search is disabled.
  */
 import L from 'leaflet'
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
-import markerIconUrl from 'leaflet/dist/images/marker-icon.png'
-import markerShadow from 'leaflet/dist/images/marker-shadow.png'
 import { config } from './config.js'
 
 const OSM_ATTRIBUTION =
@@ -70,15 +67,23 @@ export async function reverseGeocode(point, signal) {
 }
 
 /**
- * Leaflet's default marker looks up its images by URL at runtime, which breaks
- * under a bundler; use this explicit icon for every marker instead.
+ * The InfraAlert pin: a signal-yellow plate with an ink crosshair, so the exact
+ * point reads clearly on busy street tiles. The tip sits on the coordinate.
  */
-export const markerIcon = L.icon({
-  iconUrl: markerIconUrl,
-  iconRetinaUrl: markerIcon2x,
-  shadowUrl: markerShadow,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
+const PIN_SVG = `
+<svg xmlns="http://www.w3.org/2000/svg" width="36" height="48" viewBox="0 0 36 48" aria-hidden="true">
+  <ellipse cx="18" cy="45.5" rx="7" ry="2.5" fill="#14161a" opacity=".28"/>
+  <path d="M18 44c-1.2 0-12.5-13.6-12.5-24.5a12.5 12.5 0 1 1 25 0C30.5 30.4 19.2 44 18 44Z"
+        fill="#ffd60a" stroke="#14161a" stroke-width="2.5" stroke-linejoin="round"/>
+  <circle cx="18" cy="19.5" r="6.5" fill="#fff" stroke="#14161a" stroke-width="2"/>
+  <path d="M18 11.5v4.5M18 23v4.5M10 19.5h4.5M21.5 19.5H26" stroke="#14161a" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="18" cy="19.5" r="1.8" fill="#14161a"/>
+</svg>`
+
+export const markerIcon = L.divIcon({
+  className: 'pin-marker',
+  html: PIN_SVG,
+  iconSize: [36, 48],
+  iconAnchor: [18, 44],
+  popupAnchor: [0, -40],
 })
