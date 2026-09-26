@@ -4,7 +4,7 @@
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
-import { Inbox, Lock, LogOut, Menu, UserCog, Users, X } from 'lucide-react'
+import { Inbox, Lock, LogOut, MapPinned, Menu, UserCog, Users, X } from 'lucide-react'
 import { LogoMark } from '../components/Logo.jsx'
 import { StaffAuthProvider, useStaff } from './auth.jsx'
 import { hasRole, ROLE_LABELS } from './ui.jsx'
@@ -13,6 +13,7 @@ import Queue from './pages/Queue.jsx'
 import Incident from './pages/Incident.jsx'
 import Teams from './pages/Teams.jsx'
 import Members from './pages/Members.jsx'
+import Places from './pages/Places.jsx'
 
 export const STAFF_ROOT = '/staff'
 
@@ -27,6 +28,7 @@ const NAV_ITEMS = [
   },
   { to: `${STAFF_ROOT}/teams`, label: 'Teams', Icon: Users, minRole: 'supervisor' },
   { to: `${STAFF_ROOT}/members`, label: 'Staff', Icon: UserCog, minRole: 'admin' },
+  { to: `${STAFF_ROOT}/places`, label: 'Places', Icon: MapPinned, minRole: 'admin' },
 ]
 
 export default function StaffApp() {
@@ -39,6 +41,7 @@ export default function StaffApp() {
           <Route path="incidents/:id" element={<Page title="Incident" element={<Incident />} />} />
           <Route path="teams" element={<Page title="Teams" minRole="supervisor" element={<Teams />} />} />
           <Route path="members" element={<Page title="Staff" minRole="admin" element={<Members />} />} />
+          <Route path="places" element={<Page title="Places" minRole="admin" element={<Places />} />} />
           <Route path="*" element={<Page title="Not found" element={<NotFoundPanel />} />} />
         </Route>
       </Routes>

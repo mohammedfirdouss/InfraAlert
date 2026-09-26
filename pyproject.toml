@@ -1,6 +1,6 @@
+# uv workspace root. The whole application is one package: webapp/backend (ADR 0001).
 [tool.uv.workspace]
-members = ["agents/*", "mcp_server", "webapp/backend"]
-exclude = ["agents/shared"]
+members = ["webapp/backend"]
 
 # Ruff — linter & formatter
 [tool.ruff]
@@ -18,7 +18,7 @@ known-first-party = ["infraalert"]
 python_version = "3.12"
 ignore_missing_imports = true
 
-# Pytest
+# Pytest (DB tests need TEST_DATABASE_URL; see webapp/backend/tests/conftest.py)
 [tool.pytest.ini_options]
-testpaths = ["agents", "mcp_server", "webapp/backend"]
+testpaths = ["webapp/backend/tests"]
 python_files = ["test_*.py"]
