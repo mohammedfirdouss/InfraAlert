@@ -25,11 +25,6 @@ from infraalert.staff.identity import DevVerifier
 from tests.citizen import conftest as citizen
 
 
-class FakeStorage(citizen.FakeStorage):
-    def view_url(self, object_name: str) -> str:
-        return f"https://storage.test/{object_name}?view"
-
-
 def auth(email: str) -> dict[str, str]:
     """Headers that sign in as `email` through the DevVerifier."""
     return {"Authorization": f"Bearer dev:{email}"}
@@ -62,7 +57,7 @@ def deps(engine: Engine) -> Iterator[Deps]:
                 bind=conn, join_transaction_mode="create_savepoint", expire_on_commit=False
             ),
             captcha=citizen.FakeCaptcha(),
-            storage=FakeStorage(),
+            storage=citizen.FakeStorage(),
             tasks=citizen.FakeTasks(),
             staff_auth=DevVerifier(),
         )
