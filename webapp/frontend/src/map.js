@@ -73,7 +73,6 @@ export async function reverseGeocode(point, signal) {
  * Leaflet's default marker looks up its images by URL at runtime, which breaks
  * under a bundler; use this explicit icon for every marker instead.
  */
-
 export const markerIcon = L.icon({
   iconUrl: markerIconUrl,
   iconRetinaUrl: markerIcon2x,
