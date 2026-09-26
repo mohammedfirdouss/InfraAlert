@@ -91,7 +91,7 @@ def test_submitter_keys_are_cleared_after_a_day(session: Session) -> None:
     result = run_retention(session)
 
     assert result.submitter_keys_cleared >= 1
-    keys = dict(session.execute(select(Report.id, Report.submitter_key)).tuples().all())
+    keys = {r: k for r, k in session.execute(select(Report.id, Report.submitter_key))}
     assert keys[old] is None
     assert keys[recent] == "recent"
 

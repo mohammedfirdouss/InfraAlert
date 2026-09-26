@@ -115,9 +115,10 @@ def test_console_mailer_writes_an_eml_file(
     monkeypatch.setattr(mailer_module.logger, "disabled", False)
     caplog.set_level("INFO", logger=mailer_module.logger.name)
 
-    path = ConsoleMailer(outbox, SENDER).send(MESSAGE)
+    ConsoleMailer(outbox, SENDER).send(MESSAGE)
 
-    assert path.parent == outbox and path.suffix == ".eml"
+    [path] = list(outbox.iterdir())
+    assert path.suffix == ".eml"
     parsed = email.message_from_bytes(path.read_bytes(), policy=email.policy.default)
     assert parsed["To"] == "alice@example.com"
     assert parsed["Subject"] == "Hello"

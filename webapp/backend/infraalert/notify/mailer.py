@@ -83,9 +83,8 @@ class ConsoleMailer:
         self._outbox_dir = outbox_dir
         self._sender = sender
 
-    def send(self, email: Email) -> Path:
+    def send(self, email: Email) -> None:
         self._outbox_dir.mkdir(parents=True, exist_ok=True)
         path = self._outbox_dir / f"{uuid.uuid4().hex}.eml"
         path.write_bytes(bytes(build_message(email, self._sender)))
         logger.info("Email to the local outbox: %r -> %s", email.subject, path)
-        return path
