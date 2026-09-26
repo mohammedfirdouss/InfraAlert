@@ -422,6 +422,10 @@ def test_detail_shows_reports_photos_hints_teams_and_neighbours(
     assert [t["skilled"] for t in body["candidate_teams"]] == [True, True, False]
     assert far_roads and near_roads
     assert [n["id"] for n in body["nearby_incidents"]] == [str(neighbour)]
+    assert body["nearby_incidents"][0]["location"] == {
+        "lat": pytest.approx(NEAR[1]),
+        "lng": pytest.approx(NEAR[0]),
+    }
 
 
 def test_unknown_incident(client: TestClient, dispatcher: dict[str, str]) -> None:

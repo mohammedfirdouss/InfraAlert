@@ -153,6 +153,15 @@ export function formatAge(iso, now = Date.now()) {
   return `${Math.round(hours / 24)}d`
 }
 
+/**
+ * The short reference staff use for an incident: "INC 1A2B3C4D".
+ * @param {string | null | undefined} id
+ */
+export function incidentRef(id) {
+  if (!id) return 'INC ?'
+  return `INC ${String(id).replace(/-/g, '').slice(0, 8).toUpperCase()}`
+}
+
 /** @param {string} iso */
 export const formatDateTime = (iso) =>
   new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso))
