@@ -207,7 +207,7 @@ def upsert_places(session: Session, places: Sequence[OsmPlace]) -> ImportResult:
         changed = (
             table.c.name.is_distinct_from(excluded.name)
             | table.c.category.is_distinct_from(excluded.category)
-            | func.ST_AsEWKB(table.c.geom).is_distinct_from(func.ST_AsEWKB(excluded.geom))
+            | func.ST_AsBinary(table.c.geom).is_distinct_from(func.ST_AsBinary(excluded.geom))
         )
         stmt = stmt.on_conflict_do_update(
             index_elements=[table.c.osm_id],
