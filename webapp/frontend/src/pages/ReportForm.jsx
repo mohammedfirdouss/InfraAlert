@@ -92,8 +92,6 @@ export default function ReportForm() {
   const [address, setAddress] = useState('')
   const [photos, setPhotos] = useState(/** @type {string[]} */ ([]))
   const [photosBusy, setPhotosBusy] = useState(false)
-  // PhotoPicker owns its tiles after mount, so clearing photos means remounting it.
-  const [photoPickerKey, setPhotoPickerKey] = useState(0)
   const [captchaToken, setCaptchaToken] = useState(/** @type {string|null} */ (null))
   const [errors, setErrors] = useState(/** @type {Record<string, string>} */ ({}))
   const [formError, setFormError] = useState(/** @type {string|null} */ (null))
@@ -209,7 +207,6 @@ export default function ReportForm() {
       }
       if (err.status === 409 && err.detail === 'photo_already_used') {
         setPhotos([])
-        setPhotoPickerKey((k) => k + 1)
         setErrors({ photos: MESSAGES.photoUsed })
         setFormError(MESSAGES.photoUsed)
         fieldRefs.photos.current?.focus()
@@ -376,7 +373,6 @@ export default function ReportForm() {
             {...describedBy('photos')}
           >
             <PhotoPicker
-              key={photoPickerKey}
               value={photos}
               onChange={(names) => {
                 setPhotos(names)
