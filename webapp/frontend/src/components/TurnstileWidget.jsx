@@ -98,21 +98,21 @@ const TurnstileWidget = forwardRef(function TurnstileWidget({ onToken }, ref) {
     return (
       <div
         role="alert"
-        className="flex flex-col gap-2 rounded-lg border border-warning-500 bg-warning-50 p-3 text-sm text-gray-800 sm:flex-row sm:items-center"
+        className="flex animate-rise-in flex-col gap-3 rounded-md border-2 border-dashed border-concrete-400 bg-concrete-50 p-3 sm:flex-row sm:items-center sm:justify-between"
       >
-        <ShieldAlert className="h-5 w-5 shrink-0 text-warning-600" aria-hidden="true" />
-        <p className="flex-1">
-          Couldn't load the security check. Check your connection and try again.
+        <p className="field-error mt-0">
+          <ShieldAlert size={18} strokeWidth={2.25} className="shrink-0" aria-hidden="true" />
+          Couldn&apos;t load the security check. Check your connection and try again.
         </p>
         <button
           type="button"
-          className="btn-secondary"
+          className="btn-secondary shrink-0"
           onClick={() => {
             setFailed(false)
             setAttempt((a) => a + 1)
           }}
         >
-          <RotateCw className="h-4 w-4" aria-hidden="true" />
+          <RotateCw size={18} strokeWidth={2.25} aria-hidden="true" />
           Retry
         </button>
       </div>

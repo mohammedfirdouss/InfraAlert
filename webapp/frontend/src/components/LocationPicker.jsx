@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet'
-import { Loader2, LocateFixed, MapPin, Search } from 'lucide-react'
+import { AlertCircle, Crosshair, Loader2, LocateFixed, Search } from 'lucide-react'
 import { config } from '../config.js'
 import {
   addressSearchEnabled,
@@ -13,6 +13,10 @@ import {
 const LOCATED_ZOOM = 17
 const SEARCH_DEBOUNCE_MS = 300
 const GEOLOCATION_TIMEOUT_MS = 10000
+
+const ICON = { size: 18, strokeWidth: 2.25, 'aria-hidden': true }
+/** Map overlays sit above Leaflet's panes and controls (up to 1000), inside the map's own stacking context. */
+const OVERLAY = 'absolute z-[1000]'
 
 const GEOLOCATION_ERRORS = {
   1: 'Location access was denied. You can allow it in your browser settings, or tap the map to place the pin.',
@@ -49,6 +53,7 @@ export default function LocationPicker({ value, onChange, onAddressChange }) {
 
   const [locating, setLocating] = useState(false)
   const [status, setStatus] = useState('')
+  const [statusIsError, setStatusIsError] = useState(false)
 
   // Abort any in-flight reverse geocode when the picker goes away.
   useEffect(() => () => reverseAbortRef.current?.abort(), [])
@@ -77,6 +82,7 @@ export default function LocationPicker({ value, onChange, onAddressChange }) {
 
   function handleUseMyLocation() {
     setLocating(true)
+    setStatusIsError(false)
     setStatus('Finding your location…')
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -89,6 +95,7 @@ export default function LocationPicker({ value, onChange, onAddressChange }) {
       },
       (error) => {
         setLocating(false)
+        setStatusIsError(true)
         setStatus(
           GEOLOCATION_ERRORS[error?.code] ??
             "We couldn't get your location. Tap the map to place the pin instead.",
@@ -100,16 +107,19 @@ export default function LocationPicker({ value, onChange, onAddressChange }) {
 
   function handleMarkerDragEnd(event) {
     const { lat, lng } = event.target.getLatLng()
+    setStatusIsError(false)
     setStatus('')
     commitPoint({ lat, lng })
   }
 
   function handleMapClick(point) {
+    setStatusIsError(false)
     setStatus('')
     commitPoint(point)
   }
 
   function handlePlaceChosen(place) {
+    setStatusIsError(false)
     setStatus(`Pin moved to ${place.label}.`)
     commitPoint({ lat: place.lat, lng: place.lng }, { recenter: true, address: place.label })
   }
@@ -122,32 +132,12 @@ export default function LocationPicker({ value, onChange, onAddressChange }) {
   }
 
   return (
-    <div className="space-y-3">
+    <div>
       {addressSearchEnabled && (
         <AddressSearch getBias={searchBias} onChoose={handlePlaceChosen} />
       )}
 
-      {geolocationSupported && (
-        <button
-          type="button"
-          className="btn-secondary w-full sm:w-auto"
-          onClick={handleUseMyLocation}
-          disabled={locating}
-        >
-          {locating ? (
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-          ) : (
-            <LocateFixed className="h-4 w-4" aria-hidden="true" />
-          )}
-          {locating ? 'Locating…' : 'Use my location'}
-        </button>
-      )}
-
-      <p aria-live="polite" className="min-h-[1.25rem] text-sm text-gray-600">
-        {status}
-      </p>
-
-      <div className="relative z-0 h-72 overflow-hidden rounded-lg border border-gray-200">
+      <div className="relative z-0 h-72 overflow-hidden rounded-xl border-2 border-ink bg-concrete-200 shadow-plate-sm sm:h-96">
         <MapContainer
           center={[config.mapDefaultCenter.lat, config.mapDefaultCenter.lng]}
           zoom={config.mapDefaultZoom}
@@ -165,20 +155,55 @@ export default function LocationPicker({ value, onChange, onAddressChange }) {
             />
           )}
         </MapContainer>
+
+        {!value && (
+          <div
+            className={`${OVERLAY} pointer-events-none inset-0 flex flex-col items-center justify-center gap-3`}
+          >
+            <Crosshair size={44} strokeWidth={1.5} className="text-ink/60" aria-hidden="true" />
+            <p className="rounded-full border-2 border-ink bg-white/95 px-3.5 py-1.5 text-[13px] font-bold text-ink shadow-plate-sm">
+              Tap the map to drop a pin
+            </p>
+          </div>
+        )}
+
+        {geolocationSupported && (
+          <button
+            type="button"
+            className={`${OVERLAY} btn-secondary right-3 top-3`}
+            onClick={handleUseMyLocation}
+            disabled={locating}
+          >
+            {locating ? (
+              <Loader2 {...ICON} className="animate-spin" />
+            ) : (
+              <LocateFixed {...ICON} />
+            )}
+            {locating ? 'Locating…' : 'Use my location'}
+          </button>
+        )}
+
+        {value && (
+          <p className={`${OVERLAY} readout bottom-3 left-3 animate-rise-in gap-2 px-2.5 py-1.5 shadow-plate-sm`}>
+            <span className="text-asphalt-400">LAT</span>
+            <span>{value.lat.toFixed(5)}</span>
+            <span className="ml-1 text-asphalt-400">LNG</span>
+            <span>{value.lng.toFixed(5)}</span>
+          </p>
+        )}
       </div>
 
-      {value ? (
-        <p className="flex items-center gap-1 text-xs text-gray-500">
-          <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
-          <span>
-            {value.lat.toFixed(5)}, {value.lng.toFixed(5)}
-          </span>
-        </p>
-      ) : (
-        <p className="text-sm text-gray-500">
-          Tap the map to drop a pin, drag the pin to adjust it
-          {geolocationSupported ? ', or use your location' : ''}.
-        </p>
+      <p
+        aria-live="polite"
+        className={`empty:hidden ${statusIsError ? 'field-error animate-rise-in' : 'hint'}`}
+      >
+        {statusIsError && status && (
+          <AlertCircle size={15} strokeWidth={2.5} className="shrink-0" aria-hidden="true" />
+        )}
+        {status}
+      </p>
+      {value && !status && (
+        <p className="hint">Drag the pin to fine-tune the spot.</p>
       )}
     </div>
   )
@@ -287,19 +312,19 @@ function AddressSearch({ getBias, onChoose }) {
   const expanded = open && results.length > 0
 
   return (
-    <div className="relative">
+    <div className="relative mb-4">
       <label htmlFor={inputId} className="label">
         Search for an address
       </label>
       <div className="relative">
         <Search
-          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
-          aria-hidden="true"
+          {...ICON}
+          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-asphalt-400"
         />
         <input
           id={inputId}
           type="text"
-          className="input pl-9 pr-9"
+          className="input pl-10 pr-10"
           placeholder="Street, landmark or area"
           autoComplete="off"
           role="combobox"
@@ -317,8 +342,8 @@ function AddressSearch({ getBias, onChoose }) {
         />
         {searching && (
           <Loader2
-            className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-gray-400"
-            aria-hidden="true"
+            {...ICON}
+            className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-asphalt-400"
           />
         )}
       </div>
@@ -327,7 +352,7 @@ function AddressSearch({ getBias, onChoose }) {
         role="listbox"
         aria-label="Address suggestions"
         hidden={!expanded}
-        className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+        className="card absolute z-20 mt-1.5 max-h-64 w-full overflow-auto py-1.5"
       >
         {results.map((place, index) => (
           <li
@@ -335,8 +360,10 @@ function AddressSearch({ getBias, onChoose }) {
             id={`${listboxId}-${index}`}
             role="option"
             aria-selected={index === activeIndex}
-            className={`cursor-pointer px-3 py-2 text-sm ${
-              index === activeIndex ? 'bg-primary-50 text-primary-700' : 'text-gray-700'
+            className={`flex min-h-[44px] cursor-pointer items-center border-l-4 px-3 py-2 text-[15px] leading-snug ${
+              index === activeIndex
+                ? 'border-signal-400 bg-signal-100 font-bold text-ink'
+                : 'border-transparent text-asphalt-700 hover:bg-concrete-100'
             }`}
             // Keep focus in the input so blur doesn't close the list before the click lands.
             onMouseDown={(event) => event.preventDefault()}
@@ -346,7 +373,7 @@ function AddressSearch({ getBias, onChoose }) {
           </li>
         ))}
       </ul>
-      <p aria-live="polite" className="mt-1 min-h-[1rem] text-xs text-gray-500">
+      <p aria-live="polite" className="hint empty:hidden">
         {message}
       </p>
     </div>

@@ -1,18 +1,22 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import {
-  AlertCircle,
+  ArrowRight,
   Bookmark,
-  Calendar,
-  Camera,
-  CheckCircle2,
+  Check,
+  CircleDashed,
+  CircleHelp,
+  Construction,
   Copy,
-  MapPin,
+  Droplets,
+  Lightbulb,
   RefreshCw,
-  Tag,
+  TriangleAlert,
+  Waves,
+  Zap,
 } from 'lucide-react'
 import { getReport } from '../api/client.js'
-import StatusTimeline from '../components/StatusTimeline.jsx'
+import StatusTimeline, { STATUS_STEPS } from '../components/StatusTimeline.jsx'
 import LocationPreview from '../components/LocationPreview.jsx'
 
 /** How often an open report is re-fetched while the page is visible. */
@@ -145,6 +149,40 @@ function useReport(id) {
   return { state, retry: () => setAttempt((n) => n + 1) }
 }
 
+/** Shared lucide sizing: 18px with a slightly heavier stroke, to sit with Overpass. */
+const ICON = { size: 18, strokeWidth: 2.25, 'aria-hidden': true }
+
+/** Icon for each issue type, shown beside its label. */
+const ISSUE_TYPE_ICONS = {
+  pothole: Construction,
+  water_leak: Droplets,
+  power_outage: Zap,
+  broken_streetlight: Lightbulb,
+  sewage: Waves,
+  road_damage: TriangleAlert,
+  other: CircleHelp,
+}
+
+/** Big headline word for each status. */
+const STATUS_HEADLINES = {
+  ...Object.fromEntries(STATUS_STEPS.map((step) => [step.status, step.label])),
+  closed: 'Closed',
+}
+
+/** Half-circle bite taken out of the ticket's side at the perforation. */
+function Notch({ side }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`absolute top-1/2 h-7 w-3.5 -translate-y-1/2 border-2 border-ink bg-concrete-50 ${
+        side === 'left'
+          ? '-left-0.5 rounded-r-full border-l-0'
+          : '-right-0.5 rounded-l-full border-r-0'
+      }`}
+    />
+  )
+}
+
 /** Banner shown right after submitting: the link is the citizen's only way back. */
 function JustSubmittedBanner() {
   const [copy, setCopy] = useState(/** @type {'idle' | 'copied' | 'failed'} */ ('idle'))
@@ -163,63 +201,99 @@ function JustSubmittedBanner() {
   return (
     <section
       aria-labelledby="submitted-heading"
-      className="rounded-xl border border-success-500 bg-success-50 p-4"
+      className="relative animate-rise-in rounded-xl border-2 border-ink bg-white shadow-plate"
     >
-      <div className="flex items-start gap-3">
-        <CheckCircle2 size={22} className="mt-0.5 shrink-0 text-success-600" aria-hidden="true" />
-        <div className="min-w-0 flex-1">
-          <h2 id="submitted-heading" className="font-semibold text-gray-900">
-            Your report has been sent
+      <div className="flex items-start gap-4 p-5">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-go-500 text-white ring-4 ring-go-100">
+          <Check size={24} strokeWidth={3} aria-hidden="true" />
+        </span>
+        <div className="min-w-0">
+          <h2 id="submitted-heading" className="text-2xl font-black leading-tight">
+            Report sent
           </h2>
-          <p className="mt-1 text-sm text-gray-700">
-            Save this page&apos;s link: it&apos;s the only way to follow your report&apos;s
-            progress. Bookmark it or copy it somewhere safe.
-          </p>
-          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-            <input
-              type="text"
-              readOnly
-              value={url}
-              aria-label="Link to this report"
-              onFocus={(e) => e.target.select()}
-              className="input min-w-0 flex-1 font-mono text-xs"
-            />
-            <button type="button" className="btn-primary shrink-0" onClick={copyLink}>
-              {copy === 'copied' ? (
-                <CheckCircle2 size={16} aria-hidden="true" />
-              ) : (
-                <Copy size={16} aria-hidden="true" />
-              )}
-              {copy === 'copied' ? 'Link copied' : 'Copy link'}
-            </button>
-          </div>
-          <p role="status" className="mt-2 text-sm">
-            {copy === 'copied' && <span className="text-success-600">Link copied to your clipboard.</span>}
-            {copy === 'failed' && (
-              <span className="text-danger-600">
-                Couldn&apos;t copy automatically. Please copy the link above or bookmark this page.
-              </span>
-            )}
+          <p className="mt-1 text-[15px] leading-snug text-asphalt-600">
+            Save this page&apos;s link: it&apos;s the{' '}
+            <strong className="font-bold text-ink">only way to follow your report&apos;s progress</strong>. Bookmark it or copy it somewhere safe.
           </p>
         </div>
+      </div>
+
+      {/* Perforation: a dashed tear line with notches cut from both sides. */}
+      <div aria-hidden="true" className="relative h-0">
+        <Notch side="left" />
+        <div className="mx-5 border-t-2 border-dashed border-concrete-400" />
+        <Notch side="right" />
+      </div>
+
+      <div className="p-5">
+        <p aria-hidden="true" className="section-no mb-2 uppercase tracking-sign">
+          Your link · keep it
+        </p>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+          <input
+            type="text"
+            readOnly
+            value={url}
+            aria-label="Link to this report"
+            onFocus={(e) => e.target.select()}
+            className="input min-w-0 flex-1 bg-concrete-50 font-mono text-sm"
+          />
+          <button
+            type="button"
+            className={`${copy === 'copied' ? 'btn-secondary' : 'btn-primary'} shrink-0 sm:w-36`}
+            onClick={copyLink}
+          >
+            {copy === 'copied' ? (
+              <Check {...ICON} strokeWidth={3} className="text-go-600" />
+            ) : (
+              <Copy {...ICON} />
+            )}
+            {copy === 'copied' ? 'Copied' : 'Copy link'}
+          </button>
+        </div>
+        <p role="status" className="mt-2 min-h-5 text-sm font-semibold empty:mt-0 empty:min-h-0">
+          {copy === 'copied' && <span className="text-go-700">Link copied to your clipboard.</span>}
+          {copy === 'failed' && (
+            <span className="text-hazard-700">
+              Couldn&apos;t copy automatically. Please copy the link above or bookmark this page.
+            </span>
+          )}
+        </p>
       </div>
     </section>
   )
 }
 
+/** @param {{ className?: string }} props */
+function Bone({ className = '' }) {
+  return <div className={`rounded bg-concrete-200 ${className}`} />
+}
+
 function LoadingSkeleton() {
   return (
-    <div role="status" aria-label="Loading report" className="space-y-4 animate-pulse">
-      <div className="h-7 w-48 rounded bg-gray-200" />
-      <div className="card p-6 space-y-3">
+    <div role="status" aria-label="Loading report" className="animate-pulse space-y-6">
+      <div className="space-y-3">
+        <Bone className="h-5 w-28" />
+        <Bone className="h-10 w-56" />
+        <Bone className="h-4 w-full max-w-md" />
+        <Bone className="h-4 w-2/3 max-w-xs" />
+      </div>
+      <div className="card space-y-6 p-5 sm:p-6">
+        <Bone className="h-3 w-24" />
         {[0, 1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-5 w-40 rounded bg-gray-200" />
+          <div key={i} className="flex items-center gap-4">
+            <div className="h-8 w-8 rounded-full bg-concrete-200" />
+            <Bone className="h-4 w-32" />
+          </div>
         ))}
       </div>
-      <div className="card p-6 space-y-3">
-        <div className="h-4 w-full rounded bg-gray-200" />
-        <div className="h-4 w-2/3 rounded bg-gray-200" />
-        <div className="h-48 w-full rounded-lg bg-gray-200" />
+      <div className="card space-y-4 p-5 sm:p-6">
+        <Bone className="h-3 w-28" />
+        <Bone className="h-16 w-full" />
+        {[0, 1, 2].map((i) => (
+          <Bone key={i} className="h-4 w-3/4" />
+        ))}
+        <div className="h-56 w-full rounded-xl bg-concrete-200" />
       </div>
     </div>
   )
@@ -227,15 +301,16 @@ function LoadingSkeleton() {
 
 function NotFound() {
   return (
-    <div className="card p-8 text-center">
-      <AlertCircle size={32} className="mx-auto text-gray-400" aria-hidden="true" />
-      <h1 className="mt-3 text-xl font-bold text-gray-900">We couldn&apos;t find this report</h1>
-      <p className="mt-2 text-sm text-gray-600">
+    <div className="animate-rise-in py-12 text-center">
+      <p className="font-mono text-sm text-asphalt-400">404 · ROAD CLOSED</p>
+      <h1 className="mt-3 text-3xl font-black">We couldn&apos;t find this report</h1>
+      <p className="mx-auto mt-2 max-w-md text-asphalt-500">
         Check that you have the complete link. If the problem is still there, you can report it
         again.
       </p>
-      <Link to="/" className="btn-primary mt-6">
+      <Link to="/" className="btn-primary mt-8">
         Report a new issue
+        <ArrowRight {...ICON} />
       </Link>
     </div>
   )
@@ -244,40 +319,114 @@ function NotFound() {
 /** @param {{ onRetry: () => void }} props */
 function LoadError({ onRetry }) {
   return (
-    <div role="alert" className="card p-8 text-center">
-      <AlertCircle size={32} className="mx-auto text-danger-500" aria-hidden="true" />
-      <h1 className="mt-3 text-xl font-bold text-gray-900">We couldn&apos;t load this report</h1>
-      <p className="mt-2 text-sm text-gray-600">
-        Something went wrong on our side or with your connection. Please try again.
-      </p>
-      <button type="button" className="btn-secondary mt-6" onClick={onRetry}>
-        <RefreshCw size={16} aria-hidden="true" />
-        Retry
-      </button>
+    <div
+      role="alert"
+      className="animate-rise-in rounded-xl border-2 border-hazard-500 bg-hazard-50 p-5 sm:p-6"
+    >
+      <div className="flex items-start gap-3">
+        <TriangleAlert {...ICON} size={22} className="mt-1 shrink-0 text-hazard-600" />
+        <div className="min-w-0">
+          <h1 className="text-xl font-black">We couldn&apos;t load this report</h1>
+          <p className="mt-1 text-asphalt-600">
+            Something went wrong on our side or with your connection. Please try again.
+          </p>
+          <button type="button" className="btn-secondary mt-4" onClick={onRetry}>
+            <RefreshCw {...ICON} />
+            Retry
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
 
-/** @param {{ icon: import('react').ComponentType<any>, label: string, children: import('react').ReactNode }} props */
-function Detail({ icon: Icon, label, children }) {
+/** Card heading in the field-report voice: "01  PROGRESS". */
+function SectionHeading({ id, no, children }) {
   return (
-    <div className="flex gap-3">
-      <Icon size={18} className="mt-0.5 shrink-0 text-gray-400" aria-hidden="true" />
-      <div className="min-w-0">
-        <dt className="text-xs font-medium uppercase tracking-wide text-gray-500">{label}</dt>
-        <dd className="text-sm text-gray-900 break-words">{children}</dd>
-      </div>
+    <h2 id={id} className="flex items-baseline gap-2.5">
+      <span className="section-no" aria-hidden="true">
+        {no}
+      </span>
+      <span className="section-title">{children}</span>
+    </h2>
+  )
+}
+
+/** @param {{ label: string, children: import('react').ReactNode }} props */
+function Detail({ label, children }) {
+  return (
+    <div className="grid grid-cols-[6rem_1fr] gap-3 border-t border-concrete-200 py-3 first:border-t-0 first:pt-0">
+      <dt className="pt-0.5 text-[11px] font-bold uppercase tracking-sign text-asphalt-500">
+        {label}
+      </dt>
+      <dd className="min-w-0 break-words text-[15px] text-ink">{children}</dd>
     </div>
+  )
+}
+
+/** @param {{ issueType: string | null }} props */
+function IssueType({ issueType }) {
+  if (issueType == null) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded border-2 border-dashed border-concrete-400 bg-concrete-50 px-2 py-0.5 text-sm font-semibold text-asphalt-600">
+        <CircleDashed {...ICON} size={14} className="animate-spin [animation-duration:3s]" />
+        Being classified
+      </span>
+    )
+  }
+  const known = issueType in ISSUE_TYPE_LABELS
+  const Icon = ISSUE_TYPE_ICONS[known ? issueType : 'other']
+  return (
+    <span className="inline-flex items-center gap-2 font-bold">
+      <Icon {...ICON} className="shrink-0 text-asphalt-600" />
+      {ISSUE_TYPE_LABELS[known ? issueType : 'other']}
+    </span>
+  )
+}
+
+/** @param {{ report: import('../api/client.js').Report }} props */
+function StatusHero({ report }) {
+  const live = !FINAL_STATUSES.has(report.status)
+  const shortRef = report.report_id.replace(/-/g, '').slice(0, 8).toUpperCase()
+  const tone =
+    report.status === 'resolved'
+      ? 'text-go-700'
+      : report.status === 'closed'
+        ? 'text-asphalt-600'
+        : 'text-ink'
+
+  return (
+    <header className="animate-rise-in">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="tag">Report status</h1>
+        <p className="readout" title={report.report_id}>
+          <span aria-hidden="true">REF {shortRef}</span>
+          <span className="sr-only">Reference: {report.report_id}</span>
+        </p>
+      </div>
+      <p className={`mt-4 text-4xl font-black leading-none tracking-tight sm:text-5xl ${tone}`}>
+        {STATUS_HEADLINES[report.status] ?? 'Received'}
+      </p>
+      <p className="mt-3 max-w-prose text-lg leading-snug text-asphalt-600" data-testid="status-explanation">
+        {STATUS_EXPLANATIONS[report.status] ?? ''}
+      </p>
+      {live && (
+        <p className="mt-4 flex items-center gap-2 text-[13px] font-semibold text-asphalt-500">
+          <span
+            aria-hidden="true"
+            className="h-3 w-3 animate-beacon rounded-full border-2 border-ink bg-signal-400"
+          />
+          Updates automatically
+        </p>
+      )}
+    </header>
   )
 }
 
 /** @param {{ report: import('../api/client.js').Report }} props */
 function ReportView({ report }) {
   const { lat, lng } = report.location
-  const issueLabel =
-    report.issue_type == null
-      ? 'Being classified'
-      : (ISSUE_TYPE_LABELS[report.issue_type] ?? ISSUE_TYPE_LABELS.other)
+  const coords = `${lat.toFixed(5)}, ${lng.toFixed(5)}`
   const photos =
     report.photo_count === 0
       ? 'No photos attached'
@@ -285,38 +434,44 @@ function ReportView({ report }) {
 
   return (
     <>
-      <section aria-labelledby="progress-heading" className="card p-6">
-        <h2 id="progress-heading" className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+      <StatusHero report={report} />
+
+      <section aria-labelledby="progress-heading" className="card p-5 sm:p-6">
+        <SectionHeading id="progress-heading" no="01">
           Progress
-        </h2>
-        <p className="mt-2 text-gray-900" data-testid="status-explanation">
-          {STATUS_EXPLANATIONS[report.status] ?? ''}
-        </p>
+        </SectionHeading>
         <div className="mt-5">
           <StatusTimeline status={report.status} />
         </div>
       </section>
 
-      <section aria-labelledby="details-heading" className="card p-6">
-        <h2 id="details-heading" className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+      <section aria-labelledby="details-heading" className="card p-5 sm:p-6">
+        <SectionHeading id="details-heading" no="02">
           Your report
-        </h2>
-        <p className="mt-3 whitespace-pre-wrap text-gray-900">{report.description}</p>
-        <dl className="mt-5 grid gap-4 sm:grid-cols-2">
-          <Detail icon={Tag} label="Type of problem">
-            {issueLabel}
+        </SectionHeading>
+        <blockquote className="mt-4 border-l-4 border-ink py-1 pl-4">
+          <p className="whitespace-pre-wrap text-lg leading-snug text-ink">{report.description}</p>
+        </blockquote>
+        <dl className="mt-6">
+          <Detail label="Type">
+            <IssueType issueType={report.issue_type} />
           </Detail>
-          <Detail icon={Calendar} label="Submitted">
+          <Detail label="Submitted">
             <time dateTime={report.submitted_at}>{formatSubmittedAt(report.submitted_at)}</time>
           </Detail>
-          <Detail icon={MapPin} label="Location">
-            {report.address_text || `${lat.toFixed(5)}, ${lng.toFixed(5)}`}
+          <Detail label="Location">
+            {report.address_text ? (
+              <>
+                <span className="block">{report.address_text}</span>
+                <span className="mt-0.5 block font-mono text-[13px] text-asphalt-500">{coords}</span>
+              </>
+            ) : (
+              <span className="font-mono text-sm">{coords}</span>
+            )}
           </Detail>
-          <Detail icon={Camera} label="Photos">
-            {photos}
-          </Detail>
+          <Detail label="Photos">{photos}</Detail>
         </dl>
-        <div className="mt-5">
+        <div className="mt-4">
           <LocationPreview location={report.location} />
         </div>
       </section>
@@ -338,16 +493,10 @@ export default function ReportStatusPage() {
   else
     body = (
       <>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Report status</h1>
-          <p className="mt-1 text-xs text-gray-500">
-            Reference: <span className="font-mono">{state.report.report_id}</span>
-          </p>
-        </div>
         <ReportView report={state.report} />
         {!justSubmitted && (
-          <p className="flex items-center gap-2 text-xs text-gray-500">
-            <Bookmark size={14} aria-hidden="true" />
+          <p className="flex items-center gap-2 text-[13px] text-asphalt-500">
+            <Bookmark {...ICON} size={16} className="shrink-0" />
             Bookmark this page to check on your report later.
           </p>
         )}
@@ -355,7 +504,7 @@ export default function ReportStatusPage() {
     )
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+    <div className="mx-auto max-w-2xl space-y-8 px-4 py-8 sm:py-10">
       {justSubmitted && <JustSubmittedBanner />}
       {body}
     </div>

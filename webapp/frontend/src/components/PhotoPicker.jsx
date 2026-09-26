@@ -6,7 +6,7 @@
  * Only finished uploads are reported through `onChange`, in tile order.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { AlertCircle, Camera, CheckCircle2, ImageIcon, RotateCw, X } from 'lucide-react'
+import { AlertCircle, Camera, Check, ImageIcon, RotateCw, X } from 'lucide-react'
 import {
   ApiError,
   MAX_PHOTO_BYTES,
@@ -226,35 +226,37 @@ export default function PhotoPicker({ value, onChange, onBusyChange, disabled = 
   const atLimit = tiles.length >= MAX_PHOTOS_PER_REPORT
 
   return (
-    <div className="space-y-3" data-testid="photo-picker">
-      {tiles.length > 0 && (
-        <ul className="grid grid-cols-3 gap-2" aria-label="Photos">
-          {tiles.map((tile, index) => (
-            <PhotoTile
-              key={tile.id}
-              tile={tile}
-              index={index}
-              disabled={disabled}
-              onRemove={() => removeTile(tile)}
-              onRetry={() => startUpload(tile.id, tile.file, tile.contentType)}
-            />
-          ))}
-        </ul>
-      )}
+    <div data-testid="photo-picker">
+      <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
+        {tiles.length > 0 && (
+          // `contents` lets the tiles and the add tile share one grid; role="list"
+          // keeps list semantics that some browsers drop with display: contents.
+          <ul role="list" className="contents" aria-label="Photos">
+            {tiles.map((tile, index) => (
+              <PhotoTile
+                key={tile.id}
+                tile={tile}
+                index={index}
+                disabled={disabled}
+                onRemove={() => removeTile(tile)}
+                onRetry={() => startUpload(tile.id, tile.file, tile.contentType)}
+              />
+            ))}
+          </ul>
+        )}
 
-      {atLimit ? (
-        <p className="text-xs text-gray-500">
-          You've added the maximum of {MAX_PHOTOS_PER_REPORT} photos.
-        </p>
-      ) : (
-        <div>
+        {!atLimit && (
           <label
-            className={`btn-secondary w-full sm:w-auto ${
-              disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
-            } focus-within:ring-2 focus-within:ring-primary-500`}
+            className={`flex aspect-square flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-concrete-400 bg-concrete-50 p-2 text-center text-asphalt-600 transition-colors focus-within:border-solid focus-within:border-ink focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-ink ${
+              disabled
+                ? 'cursor-not-allowed opacity-45'
+                : 'cursor-pointer hover:border-ink hover:bg-white hover:text-ink'
+            }`}
           >
-            <Camera className="h-4 w-4" aria-hidden="true" />
-            <span>Add photos</span>
+            <span className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-current">
+              <Camera size={18} strokeWidth={2.25} aria-hidden="true" />
+            </span>
+            <span className="text-[13px] font-bold leading-tight">Add photos</span>
             <input
               type="file"
               className="sr-only"
@@ -264,14 +266,20 @@ export default function PhotoPicker({ value, onChange, onBusyChange, disabled = 
               onChange={handleFiles}
             />
           </label>
-          <p className="mt-1 text-xs text-gray-500">
-            Optional. Up to {MAX_PHOTOS_PER_REPORT} photos, {MAX_MB} MB each (JPEG, PNG, WebP or
-            HEIC).
-          </p>
-        </div>
-      )}
+        )}
+      </div>
 
-      <p role="status" aria-live="polite" className="text-sm text-gray-700 empty:hidden">
+      <p className="hint">
+        {atLimit
+          ? `You've added the maximum of ${MAX_PHOTOS_PER_REPORT} photos.`
+          : `Up to ${MAX_PHOTOS_PER_REPORT} photos, ${MAX_MB} MB each (JPEG, PNG, WebP or HEIC).`}
+      </p>
+
+      <p
+        role="status"
+        aria-live="polite"
+        className="mt-2 text-[13px] font-semibold text-asphalt-700 empty:hidden"
+      >
         {message}
       </p>
     </div>
@@ -285,56 +293,70 @@ export default function PhotoPicker({ value, onChange, onBusyChange, disabled = 
 function PhotoTile({ tile, index, disabled, onRemove, onRetry }) {
   const label = `Photo ${index + 1}`
   const percent = Math.round(tile.progress * 100)
+  const failed = tile.status === 'error'
   return (
-    <li className="relative overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
-      <div className="flex aspect-square items-center justify-center">
+    <li
+      className={`relative aspect-square animate-rise-in overflow-hidden rounded-lg border-2 bg-concrete-100 ${
+        failed ? 'border-hazard-500' : 'border-ink'
+      }`}
+    >
+      <div className="flex h-full w-full items-center justify-center">
         {tile.previewUrl ? (
           <img src={tile.previewUrl} alt={label} className="h-full w-full object-cover" />
         ) : (
-          <ImageIcon className="h-8 w-8 text-gray-400" role="img" aria-label={label} />
+          <ImageIcon
+            size={32}
+            strokeWidth={1.75}
+            className="text-asphalt-400"
+            role="img"
+            aria-label={label}
+          />
         )}
       </div>
 
+      <span
+        className="readout absolute left-1.5 top-1.5 px-1.5 py-0.5 text-[11px] leading-none"
+        aria-hidden="true"
+      >
+        {String(index + 1).padStart(2, '0')}
+      </span>
+
       {tile.status === 'uploading' && (
-        <div className="absolute inset-x-0 bottom-0 bg-white/90 p-1.5">
+        <div
+          role="progressbar"
+          aria-label={`Uploading ${label.toLowerCase()}`}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={percent}
+          className="absolute inset-x-0 bottom-0 h-2 border-t-2 border-ink bg-ink/40"
+        >
           <div
-            role="progressbar"
-            aria-label={`Uploading ${label.toLowerCase()}`}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={percent}
-            className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200"
-          >
-            <div
-              className="h-full bg-primary-600 transition-[width]"
-              style={{ width: `${percent}%` }}
-            />
-          </div>
+            className="h-full bg-signal-400 transition-[width] duration-200"
+            style={{ width: `${percent}%` }}
+          />
         </div>
       )}
 
       {tile.status === 'done' && (
-        <CheckCircle2
-          className="absolute bottom-1 left-1 h-5 w-5 rounded-full bg-white text-success-600"
-          aria-label={`${label} uploaded`}
-          role="img"
-        />
+        <span className="absolute bottom-1.5 left-1.5 flex h-6 w-6 animate-rise-in items-center justify-center rounded-full border-2 border-ink bg-go-500 text-white">
+          <Check size={14} strokeWidth={3} role="img" aria-label={`${label} uploaded`} />
+        </span>
       )}
 
-      {tile.status === 'error' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-white/90 p-1 text-center">
-          <AlertCircle className="h-5 w-5 text-danger-600" aria-hidden="true" />
-          <p role="alert" className="text-[11px] leading-tight text-danger-600">
+      {failed && (
+        <div className="absolute inset-0 flex animate-rise-in flex-col items-center justify-center gap-1.5 bg-hazard-50/95 px-1.5 pb-1.5 pt-9 text-center sm:pt-1.5">
+          <AlertCircle size={18} strokeWidth={2.25} className="hidden text-hazard-600 sm:block" aria-hidden="true" />
+          <p role="alert" className="text-[11px] font-semibold leading-tight text-hazard-700">
             {tile.error}
           </p>
           <button
             type="button"
             onClick={onRetry}
             disabled={disabled}
-            className="btn-secondary px-2 py-1 text-xs"
+            className="btn-secondary min-h-[36px] px-2.5 py-1 text-xs"
             aria-label={`Retry ${label.toLowerCase()}`}
           >
-            <RotateCw className="h-3 w-3" aria-hidden="true" />
+            <RotateCw size={14} strokeWidth={2.5} aria-hidden="true" />
             Retry
           </button>
         </div>
@@ -345,9 +367,9 @@ function PhotoTile({ tile, index, disabled, onRemove, onRetry }) {
         onClick={onRemove}
         disabled={disabled}
         aria-label={`Remove ${label.toLowerCase()}`}
-        className="absolute right-1 top-1 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/75 focus-visible:ring-2 disabled:opacity-50"
+        className="absolute right-1 top-1 flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-ink text-white transition-transform hover:scale-105 disabled:opacity-45"
       >
-        <X className="h-4 w-4" aria-hidden="true" />
+        <X size={16} strokeWidth={2.75} aria-hidden="true" />
       </button>
     </li>
   )

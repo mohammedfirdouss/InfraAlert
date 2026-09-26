@@ -115,7 +115,8 @@ describe('LocationPicker', () => {
 
     await user.click(screen.getByRole('button', { name: /simulate map click/i }))
 
-    expect(screen.getByText('-1.30000, 36.80000')).toBeInTheDocument()
+    expect(screen.getByText('-1.30000')).toBeInTheDocument()
+    expect(screen.getByText('36.80000')).toBeInTheDocument()
     expect(screen.queryByText(/tap the map to drop a pin/i)).not.toBeInTheDocument()
   })
 
@@ -146,7 +147,8 @@ describe('LocationPicker', () => {
     await user.click(screen.getByTestId('marker'))
 
     expect(onChange).toHaveBeenLastCalledWith({ lat: -1.31, lng: 36.81 })
-    expect(screen.getByText('-1.31000, 36.81000')).toBeInTheDocument()
+    expect(screen.getByText('-1.31000')).toBeInTheDocument()
+    expect(screen.getByText('36.81000')).toBeInTheDocument()
     expect(mocks.reverseGeocode).toHaveBeenLastCalledWith(
       { lat: -1.31, lng: 36.81 },
       expect.anything(),

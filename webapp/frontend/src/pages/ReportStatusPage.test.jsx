@@ -83,7 +83,7 @@ describe('ReportStatusPage', () => {
     expect(screen.getByTestId('marker')).toBeInTheDocument()
     const current = screen.getByRole('list', { name: 'Report progress' }).querySelector('[aria-current="step"]')
     expect(current).toHaveTextContent('Received')
-    expect(screen.queryByText(/Your report has been sent/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Report sent' })).not.toBeInTheDocument()
   })
 
   test('issue type null shows "Being classified"; a set type shows its label', async () => {
@@ -112,13 +112,13 @@ describe('ReportStatusPage', () => {
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
 
     renderPage({ state: { justSubmitted: true } })
-    expect(screen.getByRole('heading', { name: 'Your report has been sent' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Report sent' })).toBeInTheDocument()
     expect(screen.getByText(/only way to follow/)).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Copy link' }))
     expect(writeText).toHaveBeenCalledWith(window.location.href)
     expect(await screen.findByText('Link copied to your clipboard.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Link copied' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument()
   })
 
   test('copy link failure explains how to save the link instead', async () => {
@@ -235,6 +235,20 @@ describe('ReportStatusPage', () => {
     expect(screen.getByText(/A repair team has been assigned/)).toBeInTheDocument()
     await advance(POLL_INTERVAL_MS)
     expect(screen.getByText('A repair team is working on the problem now.')).toBeInTheDocument()
+  })
+
+  test('shows a short reference and a live indicator only while the report can still change', async () => {
+    getReport.mockResolvedValue(makeReport({ report_id: 'b9e05251-aaaa-bbbb', status: 'in_progress' }))
+    const { unmount } = renderPage({ id: 'b9e05251-aaaa-bbbb' })
+    expect(await screen.findByText('REF B9E05251')).toBeInTheDocument()
+    expect(screen.getByText('Reference: b9e05251-aaaa-bbbb')).toBeInTheDocument()
+    expect(screen.getByText('Updates automatically')).toBeInTheDocument()
+    unmount()
+
+    getReport.mockResolvedValue(makeReport({ status: 'resolved' }))
+    renderPage()
+    expect(await screen.findByRole('heading', { name: 'Report status' })).toBeInTheDocument()
+    expect(screen.queryByText('Updates automatically')).not.toBeInTheDocument()
   })
 
   test('closed report shows the terminal state and a plain explanation', async () => {
