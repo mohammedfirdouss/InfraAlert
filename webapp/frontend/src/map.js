@@ -5,6 +5,10 @@
  * key we fall back to the public OSM tile server, which is acceptable only for
  * local development under its usage policy, and address search is disabled.
  */
+import L from 'leaflet'
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
+import markerIconUrl from 'leaflet/dist/images/marker-icon.png'
+import markerShadow from 'leaflet/dist/images/marker-shadow.png'
 import { config } from './config.js'
 
 const OSM_ATTRIBUTION =
@@ -64,3 +68,18 @@ export async function reverseGeocode(point, signal) {
   const body = await response.json()
   return body.features?.[0]?.place_name ?? null
 }
+
+/**
+ * Leaflet's default marker looks up its images by URL at runtime, which breaks
+ * under a bundler; use this explicit icon for every marker instead.
+ */
+
+export const markerIcon = L.icon({
+  iconUrl: markerIconUrl,
+  iconRetinaUrl: markerIcon2x,
+  shadowUrl: markerShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+})
