@@ -29,19 +29,26 @@ class Settings:
     local_upload_dir: Path = Path("var/uploads")
     public_base_url: str = "http://localhost:8000"
 
-    tasks_backend: Literal["log", "cloud_tasks"] = "log"
+    # "inline" (local dev) processes reports in a background thread of this process.
+    tasks_backend: Literal["inline", "cloud_tasks"] = "inline"
     cloud_tasks_queue: str | None = None  # projects/<p>/locations/<l>/queues/<q>
-    tasks_target_url: str | None = None  # https://<service>/tasks/process-report
-    tasks_service_account: str | None = None  # signs the OIDC token Cloud Tasks sends
+    # This service's public URL; task targets and token audiences derive from it.
+    service_url: str | None = None
+    tasks_service_account: str | None = None  # signs the OIDC tokens on task requests
+
+    # "disabled" (local dev) sends every report to human triage.
+    extractor_backend: Literal["vertex", "disabled"] = "disabled"
+    gcp_project: str | None = None
+    gcp_location: str | None = None
+    gemini_model: str | None = None
 
     @classmethod
     def from_env(cls) -> Settings:
-        storage = os.getenv("STORAGE_BACKEND", "local")
-        tasks = os.getenv("TASKS_BACKEND", "log")
-        if storage not in ("gcs", "local"):
-            raise RuntimeError(f"STORAGE_BACKEND must be 'gcs' or 'local', got {storage!r}")
-        if tasks not in ("log", "cloud_tasks"):
-            raise RuntimeError(f"TASKS_BACKEND must be 'log' or 'cloud_tasks', got {tasks!r}")
+        storage = _choice("STORAGE_BACKEND", "local", ("gcs", "local"))
+        tasks = _choice("TASKS_BACKEND", "inline", ("inline", "cloud_tasks"))
+        extractor = _choice("EXTRACTOR_BACKEND", "disabled", ("vertex", "disabled"))
+        cloud = tasks == "cloud_tasks"
+        vertex = extractor == "vertex"
         return cls(
             database_url=_require("DATABASE_URL"),
             turnstile_secret_key=_require("TURNSTILE_SECRET_KEY"),
@@ -52,10 +59,19 @@ class Settings:
             gcs_bucket=_require("GCS_BUCKET") if storage == "gcs" else None,
             local_upload_dir=Path(os.getenv("LOCAL_UPLOAD_DIR", "var/uploads")),
             public_base_url=os.getenv("PUBLIC_BASE_URL", "http://localhost:8000").rstrip("/"),
-            tasks_backend=cast(Literal["log", "cloud_tasks"], tasks),
-            cloud_tasks_queue=_require("CLOUD_TASKS_QUEUE") if tasks == "cloud_tasks" else None,
-            tasks_target_url=_require("TASKS_TARGET_URL") if tasks == "cloud_tasks" else None,
-            tasks_service_account=(
-                _require("TASKS_SERVICE_ACCOUNT") if tasks == "cloud_tasks" else None
-            ),
+            tasks_backend=cast(Literal["inline", "cloud_tasks"], tasks),
+            cloud_tasks_queue=_require("CLOUD_TASKS_QUEUE") if cloud else None,
+            service_url=_require("SERVICE_URL").rstrip("/") if cloud else None,
+            tasks_service_account=_require("TASKS_SERVICE_ACCOUNT") if cloud else None,
+            extractor_backend=cast(Literal["vertex", "disabled"], extractor),
+            gcp_project=_require("GOOGLE_CLOUD_PROJECT") if vertex else None,
+            gcp_location=_require("GOOGLE_CLOUD_REGION") if vertex else None,
+            gemini_model=_require("GEMINI_MODEL") if vertex else None,
         )
+
+
+def _choice(name: str, default: str, allowed: tuple[str, ...]) -> str:
+    value = os.getenv(name, default)
+    if value not in allowed:
+        raise RuntimeError(f"{name} must be one of {allowed}, got {value!r}")
+    return value

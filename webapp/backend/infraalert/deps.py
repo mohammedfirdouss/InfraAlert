@@ -11,8 +11,11 @@ from starlette.requests import Request
 from infraalert.captcha import CaptchaVerifier, TurnstileVerifier
 from infraalert.config import Settings
 from infraalert.db.session import make_engine, make_sessionmaker
+from infraalert.processing.auth import GoogleOidcVerifier, TaskCallerVerifier
+from infraalert.processing.extraction import DisabledExtractor, Extractor, VertexExtractor
+from infraalert.processing.worker import Processor
 from infraalert.storage import GcsPhotoStorage, LocalPhotoStorage, PhotoStorage
-from infraalert.tasks import CloudTasksQueue, LoggingTaskQueue, TaskQueue
+from infraalert.tasks import CloudTasksQueue, InlineTaskQueue, TaskQueue
 
 
 @dataclass
@@ -22,6 +25,9 @@ class Deps:
     captcha: CaptchaVerifier
     storage: PhotoStorage
     tasks: TaskQueue
+    processor: Processor | None = None
+    # Set only when tasks arrive over HTTP (TASKS_BACKEND=cloud_tasks).
+    task_auth: TaskCallerVerifier | None = None
 
 
 def build_deps(settings: Settings) -> Deps:
@@ -32,23 +38,38 @@ def build_deps(settings: Settings) -> Deps:
     else:
         storage = LocalPhotoStorage(settings.local_upload_dir, settings.public_base_url)
 
-    tasks: TaskQueue
-    if settings.tasks_backend == "cloud_tasks":
-        assert settings.cloud_tasks_queue
-        assert settings.tasks_target_url
-        assert settings.tasks_service_account
-        tasks = CloudTasksQueue(
-            settings.cloud_tasks_queue, settings.tasks_target_url, settings.tasks_service_account
+    extractor: Extractor
+    if settings.extractor_backend == "vertex":
+        assert settings.gcp_project and settings.gcp_location and settings.gemini_model
+        extractor = VertexExtractor(
+            settings.gcp_project, settings.gcp_location, settings.gemini_model
         )
     else:
-        tasks = LoggingTaskQueue()
+        extractor = DisabledExtractor()
+
+    sessions = make_sessionmaker(make_engine(settings.database_url))
+    processor = Processor(sessions=sessions, storage=storage, extractor=extractor)
+
+    tasks: TaskQueue
+    task_auth: TaskCallerVerifier | None = None
+    if settings.tasks_backend == "cloud_tasks":
+        assert settings.cloud_tasks_queue and settings.service_url
+        assert settings.tasks_service_account
+        tasks = CloudTasksQueue(
+            settings.cloud_tasks_queue, settings.service_url, settings.tasks_service_account
+        )
+        task_auth = GoogleOidcVerifier(settings.tasks_service_account)
+    else:
+        tasks = InlineTaskQueue(processor.process)
 
     return Deps(
         settings=settings,
-        sessions=make_sessionmaker(make_engine(settings.database_url)),
+        sessions=sessions,
         captcha=TurnstileVerifier(settings.turnstile_secret_key),
         storage=storage,
         tasks=tasks,
+        processor=processor,
+        task_auth=task_auth,
     )
 
 

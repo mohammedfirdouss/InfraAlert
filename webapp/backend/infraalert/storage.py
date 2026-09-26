@@ -9,6 +9,7 @@ report references.
 
 from __future__ import annotations
 
+import os
 import re
 import uuid
 from dataclasses import dataclass, field
@@ -27,6 +28,11 @@ UPLOAD_URL_TTL = timedelta(minutes=10)
 UPLOAD_OBJECT_NAME = re.compile(r"^uploads/[0-9a-f]{32}\.(jpg|png|webp|heic)$")
 
 
+def _require_upload_name(upload_object_name: str) -> None:
+    if not UPLOAD_OBJECT_NAME.fullmatch(upload_object_name):
+        raise ValueError(f"not an upload object name: {upload_object_name!r}")
+
+
 def new_upload_object_name(content_type: str) -> str:
     return f"uploads/{uuid.uuid4().hex}.{CONTENT_TYPE_EXTENSIONS[content_type]}"
 
@@ -40,8 +46,35 @@ class UploadTarget:
     headers: dict[str, str] = field(default_factory=dict)
 
 
+@dataclass(frozen=True)
+class PhotoRef:
+    """How the extractor reads one photo: a gs:// URI in production, raw bytes locally."""
+
+    content_type: str
+    gcs_uri: str | None = None
+    data: bytes | None = None
+
+
+def claimed_object_name(report_id: uuid.UUID, upload_object_name: str) -> str:
+    """Where a claimed photo lives: reports/<report_id>/<file name of the upload>."""
+    return f"reports/{report_id}/{upload_object_name.rsplit('/', 1)[-1]}"
+
+
 class PhotoStorage(Protocol):
     def upload_target(self, object_name: str, content_type: str) -> UploadTarget: ...
+
+    def claim(self, upload_object_name: str, report_id: uuid.UUID) -> str | None:
+        """
+        Move an upload out of `uploads/` (where unclaimed files expire) to
+        claimed_object_name(). Returns the new name, or None if the citizen never
+        finished uploading it. Idempotent: if it was already moved, return the
+        destination name.
+        """
+        ...
+
+    def photo_ref(self, object_name: str, content_type: str) -> PhotoRef:
+        """A reference the extractor can read, for a claimed object."""
+        ...
 
 
 class GcsPhotoStorage:
@@ -79,6 +112,37 @@ class GcsPhotoStorage:
             headers={"Content-Type": content_type, **size_header},
         )
 
+    def claim(self, upload_object_name: str, report_id: uuid.UUID) -> str | None:
+        """
+        Copy then delete (GCS has no atomic move). Every step tolerates a crash or
+        a concurrent attempt: the destination is only ever created, never
+        overwritten, and a missing source after a copy means someone finished it.
+        """
+        from google.api_core.exceptions import NotFound, PreconditionFailed
+
+        _require_upload_name(upload_object_name)
+        destination = claimed_object_name(report_id, upload_object_name)
+        source = self._bucket.blob(upload_object_name)
+
+        if not source.exists():
+            return destination if self._bucket.blob(destination).exists() else None
+        try:
+            self._bucket.copy_blob(source, self._bucket, destination, if_generation_match=0)
+        except PreconditionFailed:
+            pass  # An earlier or concurrent attempt already created the destination.
+        except NotFound:
+            # The source vanished between exists() and the copy: a concurrent claim
+            # moved it, or the lifecycle rule expired it.
+            return destination if self._bucket.blob(destination).exists() else None
+        try:
+            source.delete()
+        except NotFound:
+            pass  # A concurrent attempt deleted it first.
+        return destination
+
+    def photo_ref(self, object_name: str, content_type: str) -> PhotoRef:
+        return PhotoRef(content_type, gcs_uri=f"gs://{self._bucket.name}/{object_name}")
+
 
 class LocalPhotoStorage:
     """Local development only: uploads go to a dev-only endpoint on this app."""
@@ -93,6 +157,33 @@ class LocalPhotoStorage:
             url=f"{self._base_url}/dev/uploads/{object_name}",
             headers={"Content-Type": content_type},
         )
+
+    def _path(self, object_name: str) -> Path:
+        root = self.directory.resolve()
+        path = (root / object_name).resolve()
+        if not path.is_relative_to(root) or path == root:
+            raise ValueError(f"object name escapes the storage directory: {object_name!r}")
+        return path
+
+    def claim(self, upload_object_name: str, report_id: uuid.UUID) -> str | None:
+        source = self._path(upload_object_name)
+        _require_upload_name(upload_object_name)
+        destination_name = claimed_object_name(report_id, upload_object_name)
+        destination = self._path(destination_name)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+
+        if destination.exists():
+            # Already claimed; never overwrite it, just drop any leftover source.
+            source.unlink(missing_ok=True)
+            return destination_name
+        try:
+            os.replace(source, destination)
+        except FileNotFoundError:
+            return destination_name if destination.exists() else None
+        return destination_name
+
+    def photo_ref(self, object_name: str, content_type: str) -> PhotoRef:
+        return PhotoRef(content_type, data=self._path(object_name).read_bytes())
 
     def save(self, object_name: str, data: bytes) -> None:
         path = self.directory / object_name
