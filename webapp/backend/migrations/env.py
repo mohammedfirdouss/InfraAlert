@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from logging.config import fileConfig
+from typing import Any
 
 from alembic import context
 from dotenv import load_dotenv
@@ -30,7 +31,7 @@ def _include_object(obj, name, type_, reflected, compare_to):  # type: ignore[no
     return alembic_helpers.include_object(obj, name, type_, reflected, compare_to)
 
 
-_CONFIGURE_KWARGS = dict(
+_CONFIGURE_KWARGS: dict[str, Any] = dict(
     target_metadata=target_metadata,
     include_object=_include_object,
     process_revision_directives=alembic_helpers.writer,

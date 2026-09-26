@@ -7,7 +7,7 @@ from alembic import command
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from geoalchemy2 import alembic_helpers
-from sqlalchemy import Engine, any_, exists, func, select
+from sqlalchemy import Engine, exists, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -129,12 +129,10 @@ def test_available_teams_are_derived_from_open_assignments(session: Session) -> 
     incident_location = (
         select(Incident.location).where(Incident.id == incident.id).scalar_subquery()
     )
-    open_assignment = exists().where(
-        Assignment.team_id == Team.id, Assignment.ended_at.is_(None)
-    )
+    open_assignment = exists().where(Assignment.team_id == Team.id, Assignment.ended_at.is_(None))
     names = session.scalars(
         select(Team.name)
-        .where(Team.active, ~open_assignment, IssueType.POTHOLE == any_(Team.skills))
+        .where(Team.active.is_(True), ~open_assignment, Team.skills.contains([IssueType.POTHOLE]))
         .order_by(func.ST_Distance(Team.base_location, incident_location))
     ).all()
     assert names == [near_free.name, far_free.name]

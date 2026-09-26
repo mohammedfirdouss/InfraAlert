@@ -139,9 +139,7 @@ class Team(Base):
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
     created_at: Mapped[datetime] = _created_at()
 
-    __table_args__ = (
-        Index("ix_teams_base_location", "base_location", postgresql_using="gist"),
-    )
+    __table_args__ = (Index("ix_teams_base_location", "base_location", postgresql_using="gist"),)
 
 
 class Staff(Base):
