@@ -14,9 +14,11 @@ export const PLACE_COLS =
 export function SourceTag({ place }) {
   if (place.source === 'osm') {
     return (
-      <span className="tag gap-1.5" title="Imported from OpenStreetMap">
+      <span className="tag min-w-0 max-w-full gap-1.5" title={`Imported from OpenStreetMap: ${place.osm_id}`}>
         <span className="font-extrabold">OSM</span>
-        {place.osm_id && <span className="font-mono text-[11px] text-asphalt-600">{place.osm_id}</span>}
+        {place.osm_id && (
+          <span className="min-w-0 truncate font-mono text-[11px] text-asphalt-600">{place.osm_id}</span>
+        )}
       </span>
     )
   }

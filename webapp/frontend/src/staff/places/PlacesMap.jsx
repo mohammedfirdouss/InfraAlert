@@ -97,7 +97,9 @@ function FitOnce({ places, visible }) {
     map.invalidateSize?.()
     if (fitted.current || !places?.length) return
     if (map.getSize?.().x === 0) return
-    const points = places.flatMap((p) => vertices(p.geometry))
+    // Fit to point places: OSM roads carry their full length, far beyond the city.
+    const pointPlaces = places.filter((p) => p.geometry?.type === 'Point')
+    const points = (pointPlaces.length ? pointPlaces : places).flatMap((p) => vertices(p.geometry))
     if (!points.length) return
     if (points.length === 1) map.setView(points[0], 15)
     else map.fitBounds(points, { padding: [24, 24], maxZoom: 16 })
