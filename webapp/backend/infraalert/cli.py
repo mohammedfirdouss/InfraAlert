@@ -17,6 +17,7 @@ from collections.abc import Sequence
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from infraalert.notify.retention import run_retention
 from infraalert.config import Settings, _bbox
 from infraalert.db.models import IssueType, PlaceSource, SensitivePlace, Staff, StaffRole, Team
 from infraalert.db.session import make_engine, make_sessionmaker
@@ -105,6 +106,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     admin.add_argument("--name", required=True)
     commands.add_parser("seed-dev", help="add development staff, teams and places")
     commands.add_parser("import-osm", help="refresh sensitive places from OpenStreetMap")
+    commands.add_parser(
+        "retention", help="apply the data-retention rules (ADR 0007) once, now"
+    )
     args = parser.parse_args(argv)
 
     if args.command == "seed-dev" and (os.getenv("STAFF_AUTH_BACKEND") or "dev") != "dev":
@@ -113,6 +117,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "import-osm":
         return _import_osm()
+    if args.command == "retention":
+        return _retention()
 
     engine = make_engine()
     try:
@@ -153,3 +159,19 @@ def _import_osm() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+def _retention() -> int:
+    engine = make_engine()
+    try:
+        with make_sessionmaker(engine)() as session:
+            result = run_retention(session)
+            session.commit()
+    finally:
+        engine.dispose()
+    print(
+        f"submitter keys cleared: {result.submitter_keys_cleared}, "
+        f"verifications deleted: {result.verifications_deleted}, "
+        f"contacts deleted: {result.contacts_deleted}"
+    )
+    return 0

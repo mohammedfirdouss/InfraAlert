@@ -341,8 +341,11 @@ gcloud run jobs execute $SERVICE-cli --region=$REGION --wait \
   --args=-m,infraalert.cli,create-admin,--email=<admin@city.example>,--name=<Full Name>
 
 # Load sensitive places (hospitals, schools, major roads) for CITY_BBOX now instead of
-# waiting for the first of the month.
-gcloud scheduler jobs run $SERVICE-import-osm --location=$REGION
+# waiting for the first of the month. The CLI needs only DATABASE_URL (plus the optional
+# CITY_BBOX / OVERPASS_URL), and prints what it inserted, updated and deleted.
+gcloud run jobs execute $SERVICE-cli --region=$REGION --wait \
+  --args=-m,infraalert.cli,import-osm
+# (Equivalent, through the scheduled endpoint: gcloud scheduler jobs run $SERVICE-import-osm --location=$REGION)
 ```
 
 `--args` on `jobs execute` overrides the job's arguments for that execution only (✓ per the

@@ -22,6 +22,8 @@ export const MESSAGES = {
   rateLimited:
     'Too many requests have come from this network. Please wait a while and try again.',
   network: "Couldn't reach InfraAlert. Check your connection and try again.",
+  emailUnavailable:
+    "Email updates aren't available right now. Your report is safe; check back on this page.",
   unknown: 'Something went wrong on our side. Please try again.',
 }
 
@@ -142,6 +144,9 @@ function SignupForm({ reportId }) {
       } else if (err.status === 422) {
         setEmailError(MESSAGES.emailInvalid)
         emailRef.current?.focus()
+      } else if (err.status === 503) {
+        // email_unavailable (sending failed) or email_disabled (no mailer configured)
+        setFormError(MESSAGES.emailUnavailable)
       } else {
         setFormError(MESSAGES.unknown)
       }
