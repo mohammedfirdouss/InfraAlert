@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import urllib.parse
 from collections.abc import Iterator
 
 import pytest
@@ -139,7 +140,8 @@ def test_import_osm(
     assert cli.main(["import-osm"]) == 0
     assert "fetched 6: 6 inserted, 0 updated, 0 unchanged, 0 deleted" in capsys.readouterr().out
     assert urls == ["https://overpass-api.de/api/interpreter"]
-    assert "[bbox:-1.3,36.7,-1.2,36.9]" in fake.requests[0].content.decode().replace("%2C", ",")
+    [query] = urllib.parse.parse_qs(fake.requests[0].content.decode())["data"]
+    assert "[bbox:-1.3,36.7,-1.2,36.9]" in query
     assert cli.main(["import-osm"]) == 0
     assert "0 inserted, 0 updated, 6 unchanged" in capsys.readouterr().out
     with sessions() as session:
