@@ -91,7 +91,12 @@ export function SeverityBadge({ severity, score }) {
       className={`inline-flex items-center gap-1.5 rounded border-2 px-1.5 py-0.5 text-[11px] font-extrabold uppercase tracking-sign ${SEVERITY_STYLE[severity]}`}
     >
       {severity}
-      {score != null && <span className="font-mono font-semibold opacity-80">{score.toFixed(2)}</span>}
+      {score != null && (
+        // Truncate, never round: 0.547 must not read "0.55" on a MEDIUM plate.
+        <span className="font-mono font-semibold opacity-80">
+          {(Math.floor(score * 100) / 100).toFixed(2)}
+        </span>
+      )}
     </span>
   )
 }
@@ -151,6 +156,15 @@ export function formatAge(iso, now = Date.now()) {
   const hours = Math.round(minutes / 60)
   if (hours < 48) return `${hours}h`
   return `${Math.round(hours / 24)}d`
+}
+
+/**
+ * The short reference staff use for an incident: "INC 1A2B3C4D".
+ * @param {string | null | undefined} id
+ */
+export function incidentRef(id) {
+  if (!id) return 'INC ?'
+  return `INC ${String(id).replace(/-/g, '').slice(0, 8).toUpperCase()}`
 }
 
 /** @param {string} iso */

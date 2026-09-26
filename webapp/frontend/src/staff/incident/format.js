@@ -6,10 +6,9 @@ import { ApiError } from '../../api/client.js'
 import { ISSUE_TYPES } from '../ui.jsx'
 
 /** "INC 1A2B3C4D": the first 8 hex digits of the id, for speaking over the radio. */
-export function shortRef(id) {
-  if (!id) return 'INC ?'
-  return `INC ${String(id).replace(/-/g, '').slice(0, 8).toUpperCase()}`
-}
+import { incidentRef } from '../ui.jsx'
+
+export const shortRef = incidentRef
 
 export const OPEN_STATUSES = new Set(['new', 'triaged', 'assigned', 'on_site'])
 

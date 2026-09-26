@@ -155,7 +155,10 @@ function DevSignIn({ busy, onSignIn }) {
                 disabled={busy}
                 onClick={() => onSignIn(account.email)}
               >
-                <span>Sign in as {account.role}</span>
+                <span className="whitespace-nowrap">
+                  <span className="sr-only">Sign in as </span>
+                  {account.role}
+                </span>
                 <span className="font-mono text-xs font-normal text-asphalt-500">{account.email}</span>
               </button>
             </li>

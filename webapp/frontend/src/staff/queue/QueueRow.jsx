@@ -11,14 +11,14 @@ import { describeItem, formatPlace, formatReportCount, hasLifeSafetyHazard } fro
 function TeamChip({ item }) {
   if (item.assigned_team) {
     return (
-      <span className="inline-flex max-w-[11rem] items-center truncate rounded border-2 border-ink bg-white px-1.5 py-0.5 text-xs font-bold">
+      <span className="inline-block max-w-[11rem] truncate align-middle rounded border-2 border-ink bg-white px-1.5 py-0.5 text-xs font-bold">
         {item.assigned_team.name}
       </span>
     )
   }
   if (item.suggested_team) {
     return (
-      <span className="inline-flex max-w-[11rem] items-center truncate rounded border border-dashed border-asphalt-400 px-1.5 py-0.5 text-xs text-asphalt-600">
+      <span className="inline-block max-w-[11rem] truncate align-middle rounded border border-dashed border-asphalt-400 px-1.5 py-0.5 text-xs text-asphalt-600">
         Suggested: {item.suggested_team.name}
       </span>
     )
