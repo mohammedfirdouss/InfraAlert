@@ -148,7 +148,7 @@ describe('ReportForm', () => {
   test('shows the live trimmed character count', async () => {
     const { user } = renderForm()
     await user.type(screen.getByLabelText(/what's wrong/i), '  hello  ')
-    expect(screen.getByText('5/2000 characters')).toBeInTheDocument()
+    expect(screen.getByText('5 of 2000 characters')).toBeInTheDocument()
   })
 
   test('validation errors block submission, focus the first invalid field and clear on edit', async () => {
