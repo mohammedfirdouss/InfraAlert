@@ -50,6 +50,7 @@ async function request(path, options = {}) {
  *   location: LatLng,
  *   photo_count: number,
  *   submitted_at: string,
+ *   updates_email_masked: string | null,  // set once someone confirmed email updates
  * }} Report
  */
 
@@ -124,4 +125,47 @@ export function submitReport(body) {
  */
 export function getReport(reportId) {
   return request(`/api/reports/${encodeURIComponent(reportId)}`)
+}
+
+// Email updates (ADR 0007). Addresses are only used after the citizen confirms them.
+
+/**
+ * Ask for email updates on a report. Always resolves the same way whether or not
+ * the address was already subscribed (it never reveals that). A verification
+ * email with a link to /reports/:id/verify#token=… is sent.
+ * Rejects ApiError: 400 'captcha_failed', 404 'report_not_found', 422 invalid email,
+ * 429 'rate_limited'.
+ * @param {string} reportId
+ * @param {{ email: string, captcha_token: string }} body
+ * @returns {Promise<{ status: 'verification_sent' }>}
+ */
+export function subscribeToUpdates(reportId, body) {
+  return request(`/api/reports/${encodeURIComponent(reportId)}/subscribe`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+/**
+ * Confirm an address from the verification link. Rejects ApiError 400
+ * 'invalid_or_expired_token'.
+ * @param {string} reportId
+ * @param {string} token  from the link's URL fragment
+ * @returns {Promise<{ status: 'subscribed', email_masked: string }>}  e.g. "a•••@gmail.com"
+ */
+export function verifyUpdates(reportId, token) {
+  return request(`/api/reports/${encodeURIComponent(reportId)}/verify`, {
+    method: 'POST',
+    body: JSON.stringify({ token }),
+  })
+}
+
+/**
+ * Stop updates, from the link in any update email (/unsubscribe#token=…).
+ * Idempotent. Rejects ApiError 400 'invalid_token'.
+ * @param {string} token
+ * @returns {Promise<{ status: 'unsubscribed' }>}
+ */
+export function unsubscribe(token) {
+  return request('/api/unsubscribe', { method: 'POST', body: JSON.stringify({ token }) })
 }

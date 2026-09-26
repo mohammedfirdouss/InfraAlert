@@ -12,6 +12,10 @@ from infraalert import dev_uploads
 from infraalert.citizen import api as citizen_api
 from infraalert.config import Settings
 from infraalert.deps import Deps, build_deps
+from infraalert.notify import api as notify_api
+from infraalert.notify import tasks_api as notify_tasks_api
+from infraalert.places import api as places_api
+from infraalert.places import tasks_api as places_tasks_api
 from infraalert.processing import api as processing_api
 from infraalert.staff import admin_api as staff_admin_api
 from infraalert.staff import api as staff_api
@@ -47,8 +51,12 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     app.include_router(citizen_api.router)
     app.include_router(staff_api.router)
     app.include_router(staff_admin_api.router)
+    app.include_router(notify_api.router)
+    app.include_router(places_api.router)
     if deps.task_auth is not None:
         app.include_router(processing_api.router)
+        app.include_router(notify_tasks_api.router)
+        app.include_router(places_tasks_api.router)
     if isinstance(deps.storage, LocalPhotoStorage):
         app.include_router(dev_uploads.router)
 
