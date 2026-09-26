@@ -232,6 +232,8 @@ class Report(Base):
     extraction_model: Mapped[str | None] = mapped_column(Text)
 
     submitted_at: Mapped[datetime] = _created_at()
+    # HMAC of the submitter's IP, for rate limiting only (see infraalert.ratelimit).
+    submitter_key: Mapped[str | None] = mapped_column(Text)
 
     incident: Mapped[Incident | None] = relationship(back_populates="reports")
     photos: Mapped[list[ReportPhoto]] = relationship(
@@ -247,6 +249,7 @@ class Report(Base):
         CheckConstraint("confidence BETWEEN 0 AND 1", name="confidence_range"),
         Index("ix_reports_incident_id", "incident_id"),
         Index("ix_reports_location", "location", postgresql_using="gist"),
+        Index("ix_reports_submitter_key_submitted_at", "submitter_key", "submitted_at"),
     )
 
 

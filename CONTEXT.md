@@ -12,6 +12,10 @@ _Avoid_: User, reporter (as a noun for the person), customer
 A single citizen's submission describing a problem at a specific point on the map, optionally with photos.
 _Avoid_: Ticket, complaint, issue (for the submission itself)
 
+**Report status**:
+The progress a citizen sees on their report (received, under review, team assigned, in progress, resolved, closed). It follows the report's incident but hides staff-only detail such as triage, merges and which team was sent.
+_Avoid_: Incident status (that is the staff-side state)
+
 **Verified contact**:
 An email address or phone number that a citizen has proven they control, and the only kind the service ever sends messages to.
 _Avoid_: Citizen phone
