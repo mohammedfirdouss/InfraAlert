@@ -26,10 +26,12 @@ from infraalert.db.models import (
     Incident,
     IncidentStatus,
     IssueType,
+    NotificationEvent,
     Report,
     Staff,
     Team,
 )
+from infraalert.notify.outbox import record_incident_event
 from infraalert.processing.worker import rescore
 
 S = IncidentStatus
@@ -135,6 +137,9 @@ def assign(session: Session, staff: Staff, incident_id: uuid.UUID, team_id: uuid
         raise DispatchError(409, "team_busy") from exc
 
     incident.status = S.ASSIGNED
+    if previous_team is None:
+        # Citizen updates (infraalert.notify): the first assignment only, not reassigns.
+        record_incident_event(session, incident.id, NotificationEvent.ASSIGNED)
     _audit(
         session,
         staff,
@@ -158,6 +163,7 @@ def resolve(session: Session, staff: Staff, incident_id: uuid.UUID, note: str | 
     incident.status = S.RESOLVED
     incident.resolved_at = func.now()
     team = _end_assignment(session, incident.id)
+    record_incident_event(session, incident.id, NotificationEvent.RESOLVED)  # citizen updates
     _audit(session, staff, "resolved", incident.id, team_id=team, note=note)
 
 
@@ -165,6 +171,7 @@ def close_invalid(session: Session, staff: Staff, incident_id: uuid.UUID, reason
     incident = _lock(session, incident_id, "close_invalid")
     incident.status = S.CLOSED_INVALID
     team = _end_assignment(session, incident.id)
+    record_incident_event(session, incident.id, NotificationEvent.CLOSED)  # citizen updates
     _audit(session, staff, "closed_invalid", incident.id, reason=reason, team_id=team)
 
 

@@ -141,6 +141,7 @@ export default function Places() {
               place={place}
               colour={colourOf(place.category)}
               highlighted={highlightedId === place.id}
+              canEdit={canEdit}
               onHover={setHoveredId}
               onOpen={setEditing}
               onSetEnabled={setEnabled}

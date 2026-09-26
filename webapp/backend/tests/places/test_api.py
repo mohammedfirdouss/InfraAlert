@@ -14,7 +14,11 @@ from infraalert.processing.priority import PLACE_WEIGHTS
 from tests.places.conftest import BBOX, FakeOverpass
 from tests.staff.conftest import StaffFactory, auth
 
-HOSPITAL = {"name": "Field Hospital", "category": "hospital", "location": {"lat": -1.3, "lng": 36.8}}
+HOSPITAL = {
+    "name": "Field Hospital",
+    "category": "hospital",
+    "location": {"lat": -1.3, "lng": 36.8},
+}
 
 
 @pytest.fixture()
@@ -32,13 +36,13 @@ def imported(deps: Deps, overpass: FakeOverpass) -> dict[str, uuid.UUID]:
                 SensitivePlace.source == PlaceSource.OSM
             )
         ).all()
-    return {osm_id: place_id for osm_id, place_id in rows}
+    return {str(osm_id): place_id for osm_id, place_id in rows}
 
 
 def _audit(deps: Deps, place_id: str) -> list[AuditLog]:
     with deps.sessions() as session:
-        query = select(AuditLog).where(AuditLog.entity_id == uuid.UUID(place_id)).order_by(
-            AuditLog.id
+        query = (
+            select(AuditLog).where(AuditLog.entity_id == uuid.UUID(place_id)).order_by(AuditLog.id)
         )
         return list(session.scalars(query))
 

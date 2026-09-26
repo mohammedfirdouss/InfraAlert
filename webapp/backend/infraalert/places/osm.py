@@ -182,16 +182,15 @@ def upsert_places(session: Session, places: Sequence[OsmPlace]) -> ImportResult:
     session.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": _ADVISORY_LOCK_KEY})
 
     stored = session.scalar(
-        select(func.count()).select_from(SensitivePlace).where(
-            SensitivePlace.source == PlaceSource.OSM
-        )
+        select(func.count())
+        .select_from(SensitivePlace)
+        .where(SensitivePlace.source == PlaceSource.OSM)
     )
     stored = int(stored or 0)
 
     inserted = updated = 0
-    table = SensitivePlace.__table__
     for chunk in _chunks(places, _UPSERT_BATCH):
-        stmt = insert(table).values(
+        stmt = insert(SensitivePlace).values(
             [
                 {
                     "name": p.name,
@@ -205,17 +204,19 @@ def upsert_places(session: Session, places: Sequence[OsmPlace]) -> ImportResult:
         )
         excluded = stmt.excluded
         changed = (
-            table.c.name.is_distinct_from(excluded.name)
-            | table.c.category.is_distinct_from(excluded.category)
-            | func.ST_AsBinary(table.c.geom).is_distinct_from(func.ST_AsBinary(excluded.geom))
+            SensitivePlace.name.is_distinct_from(excluded.name)
+            | SensitivePlace.category.is_distinct_from(excluded.category)
+            | func.ST_AsBinary(SensitivePlace.geom).is_distinct_from(
+                func.ST_AsBinary(excluded.geom)
+            )
         )
-        stmt = stmt.on_conflict_do_update(
-            index_elements=[table.c.osm_id],
+        upsert = stmt.on_conflict_do_update(
+            index_elements=[SensitivePlace.osm_id],
             # `enabled` is deliberately absent: admin overrides survive every import.
             set_={"name": excluded.name, "category": excluded.category, "geom": excluded.geom},
             where=changed,
         ).returning(text("(xmax = 0) AS inserted"))
-        for (was_inserted,) in session.execute(stmt).all():
+        for (was_inserted,) in session.execute(upsert).all():
             if was_inserted:
                 inserted += 1
             else:

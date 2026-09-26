@@ -43,7 +43,9 @@ class FakeOverpass:
         return httpx.Response(self.status, json=self.body)
 
     def client(self) -> OverpassClient:
-        return OverpassClient(OVERPASS_URL, httpx.Client(transport=httpx.MockTransport(self.handler)))
+        return OverpassClient(
+            OVERPASS_URL, httpx.Client(transport=httpx.MockTransport(self.handler))
+        )
 
     def keep(self, osm_ids: set[str]) -> None:
         """Drop every element whose osm_id isn't in `osm_ids`."""
@@ -60,4 +62,3 @@ def overpass() -> FakeOverpass:
 def element(body: dict[str, Any], osm_id: str) -> dict[str, Any]:
     kind, ident = osm_id.split("/")
     return next(e for e in body["elements"] if e["type"] == kind and str(e["id"]) == ident)
-

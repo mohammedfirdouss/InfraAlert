@@ -60,9 +60,7 @@ def test_parse_each_element_kind() -> None:
         "POINT(36.8283 -1.2833)",
     )
     assert places["way/30"].category == "major_road"
-    assert places["way/30"].wkt == (
-        "LINESTRING(36.8138 -1.278, 36.8203 -1.2921, 36.826 -1.305)"
-    )
+    assert places["way/30"].wkt == "LINESTRING(36.8138 -1.278, 36.8203 -1.2921, 36.826 -1.305)"
 
 
 def test_parse_skips_elements_without_geometry() -> None:
@@ -79,7 +77,7 @@ def test_parse_skips_elements_without_geometry() -> None:
     [
         (504, {"elements": []}),
         (200, {"remark": "whatever"}),
-        (200, {"elements": [], "remark": "runtime error: Query timed out in \"query\""}),
+        (200, {"elements": [], "remark": 'runtime error: Query timed out in "query"'}),
     ],
 )
 def test_fetch_errors(status: int, body: dict[str, object]) -> None:
@@ -97,9 +95,11 @@ def _osm_places(session: Session) -> dict[str, SensitivePlace]:
 
 
 def _wkt(session: Session, place: SensitivePlace) -> str:
-    return str(session.scalar(select(func.ST_AsText(SensitivePlace.geom)).where(
-        SensitivePlace.id == place.id
-    )))
+    return str(
+        session.scalar(
+            select(func.ST_AsText(SensitivePlace.geom)).where(SensitivePlace.id == place.id)
+        )
+    )
 
 
 def _manual(session: Session) -> SensitivePlace:

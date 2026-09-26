@@ -66,12 +66,13 @@ function EnabledSwitch({ checked, disabled, label, onChange }) {
  *   place: import('../api.js').Place,
  *   colour: string,
  *   highlighted: boolean,
+ *   canEdit: boolean,
  *   onHover: (id: string | null) => void,
  *   onOpen: (place: import('../api.js').Place) => void,
  *   onSetEnabled: (place: import('../api.js').Place, enabled: boolean) => Promise<void>,
  * }} props
  */
-function PlaceRow({ place, colour, highlighted, onHover, onOpen, onSetEnabled }) {
+function PlaceRow({ place, colour, highlighted, canEdit, onHover, onOpen, onSetEnabled }) {
   const [confirming, setConfirming] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -119,13 +120,14 @@ function PlaceRow({ place, colour, highlighted, onHover, onOpen, onSetEnabled })
         <span className="flex items-center gap-2">
           <EnabledSwitch
             checked={place.enabled}
-            disabled={saving || confirming}
+            disabled={!canEdit || saving || confirming}
             label={`${name} enabled`}
             onChange={handleSwitch}
           />
           {saving && <Loader2 size={14} className="animate-spin" aria-label="Saving" />}
         </span>
         <span className="md:text-right">
+          {canEdit && (
           <button
             type="button"
             className="btn-ghost -mx-3 text-sm"
@@ -139,6 +141,7 @@ function PlaceRow({ place, colour, highlighted, onHover, onOpen, onSetEnabled })
             )}
             {manual ? 'Edit' : 'Details'}
           </button>
+          )}
         </span>
       </div>
 

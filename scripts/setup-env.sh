@@ -33,9 +33,5 @@ else
     echo "gcloud not found — GOOGLE_CLOUD_PROJECT not auto-filled."
 fi
 
-echo " Next step: open .env and fill in your actual values."
-echo " Pay special attention to:"
-echo "   GEMINI_API_KEY"
-echo "   AFRICASTALKING_API_KEY"
-echo "   GOOGLE_APPLICATION_CREDENTIALS  (if not using ADC)"
-echo "Run 'make setup-tools' to install uv and configure gcloud."
+echo "Next step: the defaults in .env run everything locally (see README.md)."
+echo "Production settings are described in docs/deploy.md."

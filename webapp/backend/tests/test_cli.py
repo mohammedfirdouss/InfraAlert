@@ -8,8 +8,8 @@ from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from infraalert import cli
-from infraalert.places import osm
 from infraalert.db.models import IssueType, SensitivePlace, Staff, StaffRole, Team
+from infraalert.places import osm
 
 
 class _Undisposable:
