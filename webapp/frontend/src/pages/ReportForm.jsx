@@ -84,9 +84,9 @@ function FieldError({ id, message }) {
 }
 
 /** "01  WHERE": the field-report section header. */
-function SectionHeading({ no, id, children }) {
+function SectionHeading({ no, children }) {
   return (
-    <h2 id={id} className="mb-5 flex items-center gap-3">
+    <h2 className="mb-5 flex items-center gap-3">
       <span className="section-no">{no}</span>
       <span className="section-title">{children}</span>
       <span className="h-px flex-1 bg-concrete-200" aria-hidden="true" />
@@ -344,8 +344,8 @@ export default function ReportForm() {
         className="card mt-8 divide-y divide-concrete-200"
       >
         {/* 01 Where */}
-        <section aria-labelledby="section-where" className="p-5 sm:p-7">
-          <SectionHeading no="01" id="section-where">
+        <div className="p-5 sm:p-7">
+          <SectionHeading no="01">
             Where
           </SectionHeading>
           <span id="location-label" className={QUESTION}>
@@ -367,11 +367,11 @@ export default function ReportForm() {
             />
           </div>
           <FieldError id="location-error" message={errors.location} />
-        </section>
+        </div>
 
         {/* 02 What's wrong */}
-        <section aria-labelledby="section-what" className="p-5 sm:p-7">
-          <SectionHeading no="02" id="section-what">
+        <div className="p-5 sm:p-7">
+          <SectionHeading no="02">
             What&apos;s wrong
           </SectionHeading>
           <div>
@@ -445,11 +445,11 @@ export default function ReportForm() {
             </p>
             <FieldError id="address-error" message={errors.address} />
           </div>
-        </section>
+        </div>
 
         {/* 03 Photos */}
-        <section aria-labelledby="section-photos" className="p-5 sm:p-7">
-          <SectionHeading no="03" id="section-photos">
+        <div className="p-5 sm:p-7">
+          <SectionHeading no="03">
             Photos
           </SectionHeading>
           <span id="photos-label" className={QUESTION}>
@@ -475,11 +475,11 @@ export default function ReportForm() {
             />
           </div>
           <FieldError id="photos-error" message={errors.photos} />
-        </section>
+        </div>
 
         {/* 04 Send */}
-        <section aria-labelledby="section-send" className="p-5 sm:p-7">
-          <SectionHeading no="04" id="section-send">
+        <div className="p-5 sm:p-7">
+          <SectionHeading no="04">
             Send
           </SectionHeading>
 
@@ -543,7 +543,7 @@ export default function ReportForm() {
               )}
             </div>
           </div>
-        </section>
+        </div>
       </form>
     </div>
   )
