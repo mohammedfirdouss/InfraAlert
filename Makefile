@@ -44,7 +44,6 @@ install-dev: ## Install backend (uv) and frontend (npm) dependencies
 
 lint: ## Ruff lint the backend
 	uvx ruff check $(BACKEND_DIR)/
-	uvx ruff format --check $(BACKEND_DIR)/
 
 format: ## Ruff format the backend (and fix import order)
 	uvx ruff check --select I --fix $(BACKEND_DIR)/

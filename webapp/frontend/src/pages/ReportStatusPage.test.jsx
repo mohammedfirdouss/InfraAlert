@@ -8,6 +8,10 @@ vi.mock('../api/client.js', async (importActual) => {
   return { ...actual, getReport: vi.fn() }
 })
 
+vi.mock('../components/TurnstileWidget.jsx', () => ({
+  default: () => <div data-testid="turnstile" />,
+}))
+
 vi.mock('react-leaflet', () => ({
   MapContainer: ({ children }) => <div data-testid="map">{children}</div>,
   TileLayer: () => null,
@@ -273,5 +277,28 @@ describe('ReportStatusPage', () => {
     const list = await screen.findByRole('list', { name: 'Report progress' })
     expect(list.querySelector('[aria-current="step"]')).toHaveTextContent(label)
     expect(document.body).not.toHaveTextContent(/triage|incident/i)
+  })
+
+  test('offers email updates after the progress card, until the report is final', async () => {
+    getReport.mockResolvedValue(makeReport())
+    const { unmount } = renderPage()
+    const signup = await screen.findByRole('region', { name: 'Get an email when this changes' })
+    const progress = screen.getByRole('region', { name: /Progress/ })
+    const details = screen.getByRole('region', { name: /Your report/ })
+    expect(progress.compareDocumentPosition(signup) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(signup.compareDocumentPosition(details) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    unmount()
+
+    getReport.mockResolvedValue(makeReport({ updates_email_masked: 'a•••@gmail.com' }))
+    const second = renderPage()
+    expect(
+      await screen.findByRole('heading', { name: 'Email updates are on for a•••@gmail.com' }),
+    ).toBeInTheDocument()
+    second.unmount()
+
+    getReport.mockResolvedValue(makeReport({ status: 'resolved', updates_email_masked: 'a•••@gmail.com' }))
+    renderPage()
+    expect(await screen.findByRole('heading', { name: 'Report status' })).toBeInTheDocument()
+    expect(screen.queryByTestId('updates-signup')).not.toBeInTheDocument()
   })
 })

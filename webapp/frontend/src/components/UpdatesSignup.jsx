@@ -259,14 +259,16 @@ function SignupForm({ reportId }) {
         )}
       </button>
 
-      <div role="alert" aria-live="assertive">
-        {formError && (
-          <div className="mt-4 flex animate-rise-in items-start gap-3 rounded-md border border-l-4 border-hazard-100 border-l-hazard-500 bg-hazard-50 px-4 py-3 text-sm font-semibold leading-snug text-ink">
-            <AlertTriangle {...ICON} className="mt-px shrink-0 text-hazard-600" />
-            <span>{formError}</span>
-          </div>
-        )}
-      </div>
+      {/* role="alert" is announced as soon as it appears. */}
+      {formError && (
+        <div
+          role="alert"
+          className="mt-4 flex animate-rise-in items-start gap-3 rounded-md border border-l-4 border-hazard-100 border-l-hazard-500 bg-hazard-50 px-4 py-3 text-sm font-semibold leading-snug text-ink"
+        >
+          <AlertTriangle {...ICON} className="mt-px shrink-0 text-hazard-600" />
+          <span>{formError}</span>
+        </div>
+      )}
     </form>
   )
 }
