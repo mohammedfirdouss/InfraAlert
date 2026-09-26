@@ -17,10 +17,10 @@ from collections.abc import Sequence
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from infraalert.notify.retention import run_retention
 from infraalert.config import Settings, _bbox
 from infraalert.db.models import IssueType, PlaceSource, SensitivePlace, Staff, StaffRole, Team
 from infraalert.db.session import make_engine, make_sessionmaker
+from infraalert.notify.retention import run_retention
 from infraalert.places import osm
 
 DEV_STAFF = [
@@ -106,9 +106,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     admin.add_argument("--name", required=True)
     commands.add_parser("seed-dev", help="add development staff, teams and places")
     commands.add_parser("import-osm", help="refresh sensitive places from OpenStreetMap")
-    commands.add_parser(
-        "retention", help="apply the data-retention rules (ADR 0007) once, now"
-    )
+    commands.add_parser("retention", help="apply the data-retention rules (ADR 0007) once, now")
     args = parser.parse_args(argv)
 
     if args.command == "seed-dev" and (os.getenv("STAFF_AUTH_BACKEND") or "dev") != "dev":
