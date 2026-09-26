@@ -56,8 +56,7 @@ install-dev: ## Install all Python deps via uv for all agents + webapp backend
 check: lint ## Run ruff lint + mypy + pytest across all agents
 	@echo "==> Running mypy …"
 	uv run mypy $(AGENTS_DIR)/ $(MCP_DIR)/ $(WEBAPP_DIR)/
-	@echo "==> Running pytest …"
-	uv run pytest $(AGENTS_DIR)/ $(MCP_DIR)/ $(WEBAPP_DIR)/
+	@$(MAKE) --no-print-directory test
 
 lint: ## Ruff check agents/ mcp_server/ webapp/backend/
 	@echo "==> Ruff lint …"
@@ -67,9 +66,14 @@ format: ## Ruff format agents/ mcp_server/ webapp/backend/
 	@echo "==> Ruff format …"
 	uv run ruff format $(AGENTS_DIR)/ $(MCP_DIR)/ $(WEBAPP_DIR)/
 
-test: ## Run pytest across agents/ mcp_server/ webapp/backend/
+# Each package has its own tests/ package, so pytest runs once per package
+# (collecting them together makes the `tests` package names collide).
+test: ## Run pytest in each package (agents, mcp_server, webapp/backend)
 	@echo "==> Running tests …"
-	uv run pytest $(AGENTS_DIR)/ $(MCP_DIR)/ $(WEBAPP_DIR)/
+	@set -e; for pkg in $(AGENT_PACKAGES); do \
+		echo "--- pytest: $$pkg ---"; \
+		(cd $$pkg && uv run pytest -q); \
+	done
 
 db-up: ## Start only the PostGIS database (localhost:5433)
 	docker compose up -d --wait db
