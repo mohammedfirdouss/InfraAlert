@@ -119,6 +119,7 @@ def queue(session: Session, tab: Tab, issue_type: IssueType | None = None) -> li
             assigned_team.id,
             assigned_team.name,
         )
+        .select_from(Incident)
         .join(latest, literal(True))
         .outerjoin(suggested, suggested.id == Incident.suggested_team_id)
         .outerjoin(
