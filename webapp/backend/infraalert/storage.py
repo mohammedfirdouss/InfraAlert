@@ -9,8 +9,12 @@ report references.
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import os
 import re
+import secrets
+import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import timedelta
@@ -25,6 +29,8 @@ CONTENT_TYPE_EXTENSIONS = {
 }
 MAX_PHOTO_BYTES = 10 * 1024 * 1024
 UPLOAD_URL_TTL = timedelta(minutes=10)
+# Photo links handed to signed-in staff (ADR 0008: private bucket, short-lived URLs).
+VIEW_URL_TTL = timedelta(minutes=15)
 UPLOAD_OBJECT_NAME = re.compile(r"^uploads/[0-9a-f]{32}\.(jpg|png|webp|heic)$")
 
 
@@ -76,6 +82,10 @@ class PhotoStorage(Protocol):
         """A reference the extractor can read, for a claimed object."""
         ...
 
+    def view_url(self, object_name: str) -> str:
+        """A URL a staff member's browser can load for VIEW_URL_TTL."""
+        ...
+
 
 class GcsPhotoStorage:
     """
@@ -90,27 +100,37 @@ class GcsPhotoStorage:
         self._client = client or storage.Client()
         self._bucket = self._client.bucket(bucket_name)
 
-    def upload_target(self, object_name: str, content_type: str) -> UploadTarget:
+    def _signed_url(self, object_name: str, **kwargs: Any) -> str:
         import google.auth
         import google.auth.transport.requests
 
         credentials, _ = google.auth.default()
         credentials.refresh(google.auth.transport.requests.Request())
-        size_header = {"x-goog-content-length-range": f"0,{MAX_PHOTO_BYTES}"}
-        url = self._bucket.blob(object_name).generate_signed_url(
+        url: str = self._bucket.blob(object_name).generate_signed_url(
             version="v4",
+            service_account_email=getattr(credentials, "service_account_email", None),
+            access_token=credentials.token,
+            **kwargs,
+        )
+        return url
+
+    def upload_target(self, object_name: str, content_type: str) -> UploadTarget:
+        size_header = {"x-goog-content-length-range": f"0,{MAX_PHOTO_BYTES}"}
+        url = self._signed_url(
+            object_name,
             expiration=UPLOAD_URL_TTL,
             method="PUT",
             content_type=content_type,
             headers=size_header,
-            service_account_email=getattr(credentials, "service_account_email", None),
-            access_token=credentials.token,
         )
         return UploadTarget(
             object_name=object_name,
             url=url,
             headers={"Content-Type": content_type, **size_header},
         )
+
+    def view_url(self, object_name: str) -> str:
+        return self._signed_url(object_name, expiration=VIEW_URL_TTL, method="GET")
 
     def claim(self, upload_object_name: str, report_id: uuid.UUID) -> str | None:
         """
@@ -150,6 +170,28 @@ class LocalPhotoStorage:
     def __init__(self, directory: Path, public_base_url: str) -> None:
         self.directory = directory
         self._base_url = public_base_url
+        # Signs dev view links, like GCS signed URLs; links die with the process.
+        self._view_key = secrets.token_bytes(32)
+
+    def view_url(self, object_name: str) -> str:
+        expires = int(time.time() + VIEW_URL_TTL.total_seconds())
+        return (
+            f"{self._base_url}/dev/files/{object_name}"
+            f"?expires={expires}&signature={self._view_signature(object_name, expires)}"
+        )
+
+    def _view_signature(self, object_name: str, expires: int) -> str:
+        message = f"{object_name}\n{expires}".encode()
+        return hmac.new(self._view_key, message, hashlib.sha256).hexdigest()
+
+    def verified_view_path(self, object_name: str, expires: int, signature: str) -> Path | None:
+        """The file behind a view link, or None if the link is forged or expired."""
+        if expires < time.time():
+            return None
+        if not hmac.compare_digest(signature, self._view_signature(object_name, expires)):
+            return None
+        path = self._path(object_name)
+        return path if path.is_file() else None
 
     def upload_target(self, object_name: str, content_type: str) -> UploadTarget:
         return UploadTarget(

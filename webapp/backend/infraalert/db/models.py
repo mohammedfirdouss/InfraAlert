@@ -143,15 +143,23 @@ class Team(Base):
 
 
 class Staff(Base):
+    """
+    A city employee who may sign in (ADR 0007). Admins invite staff by email; the
+    identity provider's subject is linked on their first sign-in.
+    """
+
     __tablename__ = "staff"
 
     id: Mapped[uuid.UUID] = _uuid_pk()
-    oidc_subject: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    # NULL until the invited person first signs in.
+    oidc_subject: Mapped[str | None] = mapped_column(Text, unique=True)
     email: Mapped[str] = mapped_column(Text, nullable=False)
     display_name: Mapped[str] = mapped_column(Text, nullable=False)
     role: Mapped[StaffRole] = mapped_column(staff_role_enum, nullable=False)
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
     created_at: Mapped[datetime] = _created_at()
+
+    __table_args__ = (Index("uq_staff_email", func.lower(email), unique=True),)
 
 
 class Contact(Base):

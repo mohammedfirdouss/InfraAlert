@@ -1,11 +1,12 @@
 """
-Stand-in for signed bucket uploads during local development. Mounted only when
+Stand-ins for signed bucket uploads and downloads during local development. Mounted only when
 STORAGE_BACKEND=local; production uploads never touch the app (ADR 0008).
 """
 
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi.responses import FileResponse
 
 from infraalert.deps import get_deps
 from infraalert.storage import (
@@ -36,3 +37,17 @@ async def put_upload(object_name: str, request: Request) -> Response:
             raise HTTPException(413)
     storage.save(object_name, bytes(data))
     return Response(status_code=200)
+
+
+@router.get("/files/{object_name:path}")
+def get_file(object_name: str, expires: int, signature: str, request: Request) -> FileResponse:
+    """Stand-in for signed GCS view URLs (see LocalPhotoStorage.view_url)."""
+    storage = get_deps(request).storage
+    assert isinstance(storage, LocalPhotoStorage)
+    try:
+        path = storage.verified_view_path(object_name, expires, signature)
+    except ValueError:
+        path = None
+    if path is None:
+        raise HTTPException(404)
+    return FileResponse(path, headers={"Cache-Control": "private, max-age=600"})
