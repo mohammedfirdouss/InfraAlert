@@ -29,18 +29,16 @@ DEV_TEAMS = [
     ("Westlands Roads Crew", [IssueType.POTHOLE, IssueType.ROAD_DAMAGE], -1.2676, 36.8108),
     ("CBD Water & Sewer", [IssueType.WATER_LEAK, IssueType.SEWAGE], -1.2864, 36.8172),
     ("Eastlands Water Response", [IssueType.WATER_LEAK], -1.2833, 36.8833),
-    ("Industrial Area Electrical", [IssueType.POWER_OUTAGE, IssueType.BROKEN_STREETLIGHT],
-     -1.3031, 36.8515),
+    ("Industrial Area Electrical", [IssueType.POWER_OUTAGE, IssueType.BROKEN_STREETLIGHT], -1.3031, 36.8515),
     ("Kilimani Street Lighting", [IssueType.BROKEN_STREETLIGHT], -1.2921, 36.7856),
-    ("Langata General Maintenance", [IssueType.POTHOLE, IssueType.SEWAGE, IssueType.OTHER],
-     -1.3350, 36.7700),
-]  # fmt: skip
+    ("Langata General Maintenance", [IssueType.POTHOLE, IssueType.SEWAGE, IssueType.OTHER], -1.3350, 36.7700),
+]
 
 # (name, category, WKT)
 DEV_PLACES = [
     ("Kenyatta National Hospital", "hospital", "POINT(36.8070 -1.3009)"),
     ("Nairobi School", "school", "POINT(36.7836 -1.2707)"),
-    ("Uhuru Highway", "major_road", "LINESTRING(36.8138 -1.2780, 36.8203 -1.2921, 36.8260 -1.3050)"),
+    ("Uhuru Highway", "major_road", "LINESTRING(36.8138 -1.278, 36.8203 -1.2921, 36.826 -1.305)"),
 ]
 
 
