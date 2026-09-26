@@ -71,6 +71,13 @@ export function IssueTypeLabel({ value, className = '' }) {
   )
 }
 
+/**
+ * A priority score to two decimals, truncated rather than rounded so it never
+ * crosses a band boundary: 0.547 is MEDIUM and must read 0.54, not 0.55.
+ * @param {number} score
+ */
+export const formatScore = (score) => (Math.floor(score * 100 + 1e-9) / 100).toFixed(2)
+
 const SEVERITY_STYLE = {
   CRITICAL: 'bg-hazard-500 text-white border-ink',
   HIGH: 'bg-signal-400 text-ink border-ink',
@@ -92,10 +99,7 @@ export function SeverityBadge({ severity, score }) {
     >
       {severity}
       {score != null && (
-        // Truncate, never round: 0.547 must not read "0.55" on a MEDIUM plate.
-        <span className="font-mono font-semibold opacity-80">
-          {(Math.floor(score * 100) / 100).toFixed(2)}
-        </span>
+        <span className="font-mono font-semibold opacity-80">{formatScore(score)}</span>
       )}
     </span>
   )
