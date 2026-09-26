@@ -69,6 +69,7 @@ def make_incident(
             priority_inputs={"test": True} if score is not None else None,
             suggested_team_id=suggested_team_id,
             created_at=func.now() - age,
+            resolved_at=func.now() if status is IncidentStatus.RESOLVED else None,
         )
         session.add(incident)
         session.flush()
@@ -85,6 +86,8 @@ def make_incident(
                     hazard_flags=flags or [],
                     summary=f"Summary {n}",
                     confidence=0.9,
+                    # now() is fixed within a transaction; give reports distinct times.
+                    submitted_at=func.now() - age + timedelta(seconds=n),
                     photos=[
                         ReportPhoto(
                             object_name=f"reports/x/{uuid.uuid4().hex}.jpg",

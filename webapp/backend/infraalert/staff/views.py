@@ -97,7 +97,7 @@ def queue(session: Session, tab: Tab, issue_type: IssueType | None = None) -> li
     latest = (
         select(Report)
         .where(Report.incident_id == Incident.id)
-        .order_by(Report.submitted_at.desc())
+        .order_by(Report.submitted_at.desc(), Report.id)
         .limit(1)
         .correlate(Incident)
         .subquery()
@@ -341,7 +341,7 @@ def _item(session: Session, incident: Incident) -> QueueItem:
     latest = session.scalars(
         select(Report)
         .where(Report.incident_id == incident.id)
-        .order_by(Report.submitted_at.desc())
+        .order_by(Report.submitted_at.desc(), Report.id)
     ).first()
     suggested = session.get(Team, incident.suggested_team_id) if incident.suggested_team_id else None
     assigned = session.execute(
@@ -429,7 +429,7 @@ def nearby_incidents(session: Session, incident_id: uuid.UUID) -> list[NearbyInc
     headline = (
         select(func.coalesce(Report.summary, Report.description))
         .where(Report.incident_id == Incident.id)
-        .order_by(Report.submitted_at.desc())
+        .order_by(Report.submitted_at.desc(), Report.id)
         .limit(1)
         .correlate(Incident)
         .scalar_subquery()
