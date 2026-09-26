@@ -31,7 +31,8 @@ REGION ?= us-central1
 .PHONY: help install-dev check lint format test \
         docker-up docker-down build-all \
         deploy-all deploy-service \
-        setup-tools setup-gcloud clean
+        setup-tools setup-gcloud clean \
+        db-up db-migrate db-revision
 
 help: ## Print all targets with descriptions
 	@echo ""
@@ -48,15 +49,14 @@ help: ## Print all targets with descriptions
 install-dev: ## Install all Python deps via uv for all agents + webapp backend
 	@echo "==> Installing development dependencies …"
 	@which uv > /dev/null 2>&1 || (echo "uv not found — run 'make setup-tools' first" && exit 1)
-	uv sync --all-packages
+	uv sync --all-packages --all-extras
 	@echo "==> Done."
 
 
 check: lint ## Run ruff lint + mypy + pytest across all agents
 	@echo "==> Running mypy …"
 	uv run mypy $(AGENTS_DIR)/ $(MCP_DIR)/ $(WEBAPP_DIR)/
-	@echo "==> Running pytest …"
-	uv run pytest $(AGENTS_DIR)/ $(MCP_DIR)/ $(WEBAPP_DIR)/
+	@$(MAKE) --no-print-directory test
 
 lint: ## Ruff check agents/ mcp_server/ webapp/backend/
 	@echo "==> Ruff lint …"
@@ -66,9 +66,26 @@ format: ## Ruff format agents/ mcp_server/ webapp/backend/
 	@echo "==> Ruff format …"
 	uv run ruff format $(AGENTS_DIR)/ $(MCP_DIR)/ $(WEBAPP_DIR)/
 
-test: ## Run pytest across agents/ mcp_server/ webapp/backend/
+# Each package has its own tests/ package, so pytest runs once per package
+# (collecting them together makes the `tests` package names collide).
+test: ## Run pytest in each package (agents, mcp_server, webapp/backend)
 	@echo "==> Running tests …"
-	uv run pytest $(AGENTS_DIR)/ $(MCP_DIR)/ $(WEBAPP_DIR)/
+	@set -e; for pkg in $(AGENT_PACKAGES); do \
+		echo "--- pytest: $$pkg ---"; \
+		(cd $$pkg && uv run pytest -q); \
+	done
+
+db-up: ## Start only the PostGIS database (localhost:5433)
+	docker compose up -d --wait db
+
+db-migrate: db-up ## Apply all migrations to the local database
+	cd $(WEBAPP_DIR) && uv run alembic upgrade head
+
+db-revision: db-up ## Autogenerate a migration  (usage: make db-revision MSG="add x")
+ifndef MSG
+	$(error MSG is not set. Usage: make db-revision MSG="describe the change")
+endif
+	cd $(WEBAPP_DIR) && uv run alembic revision --autogenerate -m "$(MSG)"
 
 docker-up: ## docker compose up --build (starts all local services)
 	docker compose up --build
