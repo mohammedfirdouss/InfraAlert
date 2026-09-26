@@ -1,14 +1,18 @@
 import { Link, Route, Routes } from 'react-router-dom'
-import { AlertTriangle } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
+import { LogoMark } from './components/Logo.jsx'
 import ReportForm from './pages/ReportForm.jsx'
 import ReportStatusPage from './pages/ReportStatusPage.jsx'
 
 function NotFound() {
   return (
-    <div className="max-w-lg mx-auto px-4 py-16 text-center">
-      <h1 className="text-xl font-bold text-gray-900">Page not found</h1>
-      <Link to="/" className="btn-primary mt-6">
+    <div className="mx-auto max-w-lg px-4 py-20 text-center animate-rise-in">
+      <p className="font-mono text-sm text-asphalt-400">404 · ROAD CLOSED</p>
+      <h1 className="mt-3 text-3xl font-black">Page not found</h1>
+      <p className="mt-2 text-asphalt-500">This page doesn&apos;t exist, or its link was mistyped.</p>
+      <Link to="/" className="btn-primary mt-8">
         Report an issue
+        <ArrowRight size={18} aria-hidden="true" />
       </Link>
     </div>
   )
@@ -17,16 +21,20 @@ function NotFound() {
 /** Citizen-facing app. The staff dashboard arrives in step 4 behind SSO. */
 export default function App() {
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="bg-gray-900 border-b border-gray-800">
-        <div className="max-w-3xl mx-auto px-4 h-14 flex items-center">
-          <Link to="/" className="flex items-center gap-2 text-white font-bold text-lg">
-            <span className="p-1 bg-primary-600 rounded-lg">
-              <AlertTriangle size={18} className="text-white" aria-hidden="true" />
+    <div className="flex min-h-screen flex-col">
+      <header className="bg-ink text-white">
+        <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-4">
+          <Link to="/" className="flex items-center gap-2.5" aria-label="InfraAlert home">
+            <LogoMark className="h-9 w-9" />
+            <span className="text-xl font-black tracking-tight">
+              Infra<span className="text-signal-400">Alert</span>
             </span>
-            InfraAlert
           </Link>
+          <span className="hidden font-mono text-[11px] uppercase tracking-sign text-asphalt-400 sm:block">
+            Public works · Citizen reports
+          </span>
         </div>
+        <div className="lane-strip" aria-hidden="true" />
       </header>
 
       <main className="flex-1">
@@ -37,8 +45,13 @@ export default function App() {
         </Routes>
       </main>
 
-      <footer className="bg-gray-900 text-gray-500 text-xs text-center py-4 border-t border-gray-800">
-        &copy; {new Date().getFullYear()} InfraAlert
+      <footer className="mt-12 border-t-4 border-ink bg-ink text-asphalt-400">
+        <div className="mx-auto flex max-w-3xl flex-col gap-1 px-4 py-6 text-xs sm:flex-row sm:justify-between">
+          <span>
+            <span className="font-bold text-white">InfraAlert</span> · reports go to city public works
+          </span>
+          <span className="font-mono">No account needed · your IP is never stored</span>
+        </div>
       </footer>
     </div>
   )
