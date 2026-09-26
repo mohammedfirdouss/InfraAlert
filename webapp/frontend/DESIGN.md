@@ -43,3 +43,27 @@ and counts. Both are self-hosted (no third-party font requests).
   the live/current state) and is disabled under `prefers-reduced-motion`.
 - Words: plain, calm, second person. Say what happens next. No internal terms
   (triage, incident, extraction) on citizen screens.
+
+## The staff side: the control room
+
+Dispatchers work at a desk for hours, scanning and triaging quickly. Same tokens and voice,
+different density:
+
+- **Shell**: an asphalt (`bg-ink`) sidebar on desktop, with the logo, the lane strip and nav in
+  small-caps sign type; the current page is marked with a signal-yellow bar. On mobile the sidebar
+  becomes a top bar with a menu. Content sits on `concrete-50`, not the grid pattern (quieter).
+- **Density**: 14px body text and tight rows, but keep 44px targets for actions. Tables and
+  lists use hairline `concrete-200` dividers, not cards per row.
+- **Urgency reads first**: `SeverityBadge`, then hazards (`HazardFlags`: life-safety flags are
+  solid orange), then the issue type and age. Only CRITICAL uses solid orange on the plate.
+- **Machine hints are labelled as such**: anything that came from extraction (type, flags,
+  summary, confidence) is marked "Suggested by the system" with a dashed border, so staff
+  know what to verify (ADR 0004). Human decisions are solid.
+- **Shared pieces** live in src/staff/ui.jsx (`ISSUE_TYPES`, `IssueTypeLabel`, `SeverityBadge`,
+  `StatusPill`, `HazardFlags`, `formatAge`, `formatDateTime`, `formatDistance`, `hasRole`).
+  Use them rather than restyling these per page.
+- **Maps**: incident pins are severity-coloured circles (CRITICAL orange, HIGH yellow, MEDIUM
+  white, LOW concrete) with an ink border; the selected one gets a thicker ring. Use `tileLayer`
+  from src/map.js.
+- **Actions** are sign plates. Destructive or irreversible ones (close, merge, split) ask for
+  confirmation inline (never `window.confirm`) and say exactly what will happen.

@@ -42,6 +42,9 @@ class FakeStorage:
     def photo_ref(self, object_name: str, content_type: str) -> PhotoRef:
         return PhotoRef(content_type, gcs_uri=f"gs://test/{object_name}")
 
+    def view_url(self, object_name: str) -> str:
+        return f"https://storage.test/{object_name}?view"
+
 
 @dataclass
 class FakeTasks:

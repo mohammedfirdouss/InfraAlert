@@ -26,4 +26,18 @@ export const config = {
   mapDefaultZoom: 13,
   /** Emergency number shown on the report form (ADR 0005). */
   emergencyNumber: env.VITE_EMERGENCY_NUMBER || '112',
+
+  /**
+   * Staff sign-in (ADR 0007). "dev" signs in by typing a seeded staff email and
+   * only works against a backend running STAFF_AUTH_BACKEND=dev.
+   */
+  staffAuth: env.VITE_STAFF_AUTH === 'identity_platform' ? 'identity_platform' : 'dev',
+  /** Google Identity Platform (Firebase Auth) web config, for identity_platform. */
+  firebase: {
+    apiKey: env.VITE_FIREBASE_API_KEY || '',
+    authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || '',
+    projectId: env.VITE_FIREBASE_PROJECT_ID || '',
+  },
+  /** The Identity Platform provider id of the city's SSO, e.g. "oidc.city-sso". */
+  staffSignInProvider: env.VITE_STAFF_SIGN_IN_PROVIDER || '',
 }

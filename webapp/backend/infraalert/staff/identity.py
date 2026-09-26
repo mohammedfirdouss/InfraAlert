@@ -36,9 +36,7 @@ class IdentityPlatformVerifier:
 
     def verify(self, token: str) -> Identity | None:
         try:
-            claims = id_token.verify_firebase_token(
-                token, self._request, audience=self._project_id
-            )
+            claims = id_token.verify_firebase_token(token, self._request, audience=self._project_id)
         except ValueError as exc:
             logger.info("Rejected staff token: %s", exc)
             return None

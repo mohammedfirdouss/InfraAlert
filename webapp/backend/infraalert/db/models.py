@@ -188,7 +188,8 @@ class Incident(Base):
     location: Mapped[Any] = mapped_column(_point(), nullable=False)
     priority_score: Mapped[float | None] = mapped_column(Float)
     formula_version: Mapped[str | None] = mapped_column(Text)
-    priority_inputs: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    # none_as_null: Python None must be SQL NULL, not JSON null (see score_has_provenance).
+    priority_inputs: Mapped[dict[str, Any] | None] = mapped_column(JSONB(none_as_null=True))
     suggested_team_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("teams.id"))
     merged_into_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("incidents.id"))
     created_at: Mapped[datetime] = _created_at()

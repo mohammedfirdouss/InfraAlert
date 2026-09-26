@@ -1,8 +1,12 @@
+import { lazy, Suspense } from 'react'
 import { Link, Route, Routes } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
 import { LogoMark } from './components/Logo.jsx'
 import ReportForm from './pages/ReportForm.jsx'
 import ReportStatusPage from './pages/ReportStatusPage.jsx'
+
+// Loaded on demand: citizens never download the staff app or its sign-in SDK.
+const StaffApp = lazy(() => import('./staff/StaffApp.jsx'))
 
 function NotFound() {
   return (
@@ -18,8 +22,24 @@ function NotFound() {
   )
 }
 
-/** Citizen-facing app. The staff dashboard arrives in step 4 behind SSO. */
 export default function App() {
+  return (
+    <Routes>
+      <Route
+        path="/staff/*"
+        element={
+          <Suspense fallback={<div className="min-h-screen bg-asphalt-900" aria-busy="true" />}>
+            <StaffApp />
+          </Suspense>
+        }
+      />
+      <Route path="*" element={<CitizenApp />} />
+    </Routes>
+  )
+}
+
+/** The public, citizen-facing site. */
+function CitizenApp() {
   return (
     <div className="flex min-h-screen flex-col">
       <header className="bg-ink text-white">
