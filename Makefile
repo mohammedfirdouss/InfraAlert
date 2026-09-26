@@ -49,7 +49,7 @@ help: ## Print all targets with descriptions
 install-dev: ## Install all Python deps via uv for all agents + webapp backend
 	@echo "==> Installing development dependencies …"
 	@which uv > /dev/null 2>&1 || (echo "uv not found — run 'make setup-tools' first" && exit 1)
-	uv sync --all-packages
+	uv sync --all-packages --all-extras
 	@echo "==> Done."
 
 
