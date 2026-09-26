@@ -31,7 +31,8 @@ REGION ?= us-central1
 .PHONY: help install-dev check lint format test \
         docker-up docker-down build-all \
         deploy-all deploy-service \
-        setup-tools setup-gcloud clean
+        setup-tools setup-gcloud clean \
+        db-up db-migrate db-revision
 
 help: ## Print all targets with descriptions
 	@echo ""
@@ -69,6 +70,18 @@ format: ## Ruff format agents/ mcp_server/ webapp/backend/
 test: ## Run pytest across agents/ mcp_server/ webapp/backend/
 	@echo "==> Running tests …"
 	uv run pytest $(AGENTS_DIR)/ $(MCP_DIR)/ $(WEBAPP_DIR)/
+
+db-up: ## Start only the PostGIS database (localhost:5433)
+	docker compose up -d --wait db
+
+db-migrate: db-up ## Apply all migrations to the local database
+	cd $(WEBAPP_DIR) && uv run alembic upgrade head
+
+db-revision: db-up ## Autogenerate a migration  (usage: make db-revision MSG="add x")
+ifndef MSG
+	$(error MSG is not set. Usage: make db-revision MSG="describe the change")
+endif
+	cd $(WEBAPP_DIR) && uv run alembic revision --autogenerate -m "$(MSG)"
 
 docker-up: ## docker compose up --build (starts all local services)
 	docker compose up --build

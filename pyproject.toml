@@ -1,5 +1,6 @@
 [tool.uv.workspace]
 members = ["agents/*", "mcp_server", "webapp/backend"]
+exclude = ["agents/shared"]
 
 # Ruff — linter & formatter
 [tool.ruff]
@@ -8,6 +9,9 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["infraalert"]
 
 # Mypy — static type checker
 [tool.mypy]
