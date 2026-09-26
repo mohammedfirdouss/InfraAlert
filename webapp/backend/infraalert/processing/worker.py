@@ -27,7 +27,6 @@ from infraalert.db.models import (
     IncidentStatus,
     IssueType,
     Report,
-    ReportPhoto,
     ReportProcessing,
 )
 from infraalert.processing.extraction import (
@@ -226,9 +225,7 @@ def _match_incident(
     ).first()
 
 
-def _new_incident(
-    session: Session, report_id: uuid.UUID, issue_type: IssueType | None
-) -> Incident:
+def _new_incident(session: Session, report_id: uuid.UUID, issue_type: IssueType | None) -> Incident:
     incident = Incident(issue_type=issue_type, location=_report_location(report_id))
     session.add(incident)
     session.flush()

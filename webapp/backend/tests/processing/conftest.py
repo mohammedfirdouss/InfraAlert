@@ -85,9 +85,7 @@ def processor(
 
 
 @pytest.fixture()
-def submit(
-    sessions: sessionmaker[Session], storage: LocalPhotoStorage
-) -> Callable[..., uuid.UUID]:
+def submit(sessions: sessionmaker[Session], storage: LocalPhotoStorage) -> Callable[..., uuid.UUID]:
     """Store a received report as the citizen API would; optionally upload its photos."""
 
     def _submit(

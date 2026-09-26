@@ -17,6 +17,7 @@ from sqlalchemy import Engine, delete, func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from infraalert.db.models import AuditLog, Incident, IssueType, Report
+from infraalert.processing import worker
 from infraalert.processing.worker import Outcome, Processor
 from infraalert.storage import LocalPhotoStorage, PhotoRef
 from tests.processing.conftest import HERE, NEAR, extraction, wkt
@@ -72,14 +73,33 @@ def test_duplicate_deliveries_process_a_report_once(
 
     assert sorted(outcomes) == sorted([Outcome.PROCESSED, Outcome.ALREADY_DONE])
     with sessions() as session:
-        assert session.scalar(
-            select(func.count()).select_from(AuditLog).where(AuditLog.entity_id == report_id)
-        ) == 1
+        assert (
+            session.scalar(
+                select(func.count()).select_from(AuditLog).where(AuditLog.entity_id == report_id)
+            )
+            == 1
+        )
 
 
 def test_simultaneous_reports_of_one_problem_share_an_incident(
-    committed: tuple[sessionmaker[Session], list[uuid.UUID]], tmp_path: Path
+    committed: tuple[sessionmaker[Session], list[uuid.UUID]],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    # Hold each worker just before it creates an incident. With the matching lock
+    # only one can get here at a time, so the wait times out and the second then
+    # finds the first's incident. Without it, both arrive together and duplicate.
+    gate = threading.Barrier(2)
+    real_new_incident = worker._new_incident
+
+    def gated_new_incident(*args, **kwargs):  # type: ignore[no-untyped-def]
+        try:
+            gate.wait(timeout=1)
+        except threading.BrokenBarrierError:
+            pass
+        return real_new_incident(*args, **kwargs)
+
+    monkeypatch.setattr(worker, "_new_incident", gated_new_incident)
     sessions, report_ids = committed
     report_ids += [_new_report(sessions, HERE), _new_report(sessions, NEAR)]
     processor = Processor(sessions, LocalPhotoStorage(tmp_path, ""), BarrierExtractor(2))

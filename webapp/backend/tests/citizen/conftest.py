@@ -15,7 +15,7 @@ from infraalert.app import create_app
 from infraalert.captcha import CaptchaResult
 from infraalert.config import Settings
 from infraalert.deps import Deps
-from infraalert.storage import UploadTarget
+from infraalert.storage import PhotoRef, UploadTarget, claimed_object_name
 
 
 @dataclass
@@ -35,6 +35,12 @@ class FakeStorage:
             url=f"https://storage.test/{object_name}?signed",
             headers={"Content-Type": content_type},
         )
+
+    def claim(self, upload_object_name: str, report_id: uuid.UUID) -> str | None:
+        return claimed_object_name(report_id, upload_object_name)
+
+    def photo_ref(self, object_name: str, content_type: str) -> PhotoRef:
+        return PhotoRef(content_type, gcs_uri=f"gs://test/{object_name}")
 
 
 @dataclass

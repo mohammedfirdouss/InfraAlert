@@ -59,7 +59,7 @@ def _serve_spa(app: FastAPI, dist: Path) -> None:
 
     @app.get("/{full_path:path}", include_in_schema=False)
     def spa(full_path: str) -> FileResponse:
-        if full_path.startswith(("api/", "dev/")):
+        if full_path.startswith(("api/", "dev/", "tasks/")):
             raise HTTPException(404)
         requested = (dist / full_path).resolve()
         if requested.is_file() and requested.is_relative_to(dist.resolve()):

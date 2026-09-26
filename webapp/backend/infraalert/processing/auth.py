@@ -29,6 +29,4 @@ class GoogleOidcVerifier:
         except ValueError as exc:  # bad signature, expired, wrong audience
             logger.warning("Rejected task token: %s", exc)
             return False
-        return claims.get("email") == self._service_account and bool(
-            claims.get("email_verified")
-        )
+        return claims.get("email") == self._service_account and bool(claims.get("email_verified"))
