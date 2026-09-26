@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import copy
 import json
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -62,5 +61,3 @@ def element(body: dict[str, Any], osm_id: str) -> dict[str, Any]:
     kind, ident = osm_id.split("/")
     return next(e for e in body["elements"] if e["type"] == kind and str(e["id"]) == ident)
 
-
-ElementFinder = Callable[[dict[str, Any], str], dict[str, Any]]
