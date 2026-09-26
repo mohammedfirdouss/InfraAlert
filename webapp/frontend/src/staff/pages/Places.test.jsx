@@ -45,7 +45,13 @@ const PLACES = [
     id: 'p2',
     name: 'Uhuru Highway',
     category: 'major_road',
-    geometry: { type: 'LineString', coordinates: [[36.81, -1.29], [36.82, -1.3]] },
+    geometry: {
+      type: 'LineString',
+      coordinates: [
+        [36.81, -1.29],
+        [36.82, -1.3],
+      ],
+    },
     source: 'osm',
     osm_id: 'way/456',
     enabled: true,
@@ -54,7 +60,17 @@ const PLACES = [
     id: 'p3',
     name: 'City Market',
     category: 'market',
-    geometry: { type: 'Polygon', coordinates: [[[36.82, -1.28], [36.83, -1.28], [36.83, -1.29], [36.82, -1.28]]] },
+    geometry: {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [36.82, -1.28],
+          [36.83, -1.28],
+          [36.83, -1.29],
+          [36.82, -1.28],
+        ],
+      ],
+    },
     source: 'osm',
     osm_id: 'way/789',
     enabled: false,
@@ -128,7 +144,13 @@ describe('Places list', () => {
     expect(screen.getByText(/within 300 m of a sensitive place/)).toBeInTheDocument()
     expect(screen.getByText(/Last OpenStreetMap import:/)).toHaveTextContent(/2026/)
 
-    expect(rowNames()).toEqual(['City Market', 'Community Clinic', 'Kenyatta National Hospital', 'Uhuru Highway', 'Unnamed'])
+    expect(rowNames()).toEqual([
+      'City Market',
+      'Community Clinic',
+      'Kenyatta National Hospital',
+      'Uhuru Highway',
+      'Unnamed',
+    ])
 
     const hospital = within(row('Kenyatta National Hospital'))
     expect(hospital.getByText('Hospital')).toBeInTheDocument()

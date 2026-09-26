@@ -141,7 +141,11 @@ export default function PlacePanel({ place, categories, colourOf, onClose, onSav
 
   return (
     <div className="fixed inset-0 z-[1100] flex justify-end" onKeyDown={handleKeyDown}>
-      <div className="absolute inset-0 hidden bg-ink/40 sm:block" aria-hidden="true" onClick={saving ? undefined : onClose} />
+      <div
+        className="absolute inset-0 hidden bg-ink/40 sm:block"
+        aria-hidden="true"
+        onClick={saving ? undefined : onClose}
+      />
       <div
         ref={panelRef}
         role="dialog"
@@ -166,7 +170,12 @@ export default function PlacePanel({ place, categories, colourOf, onClose, onSav
         </header>
 
         {readOnly ? (
-          <OsmDetails place={place} colour={colourOf(place.category)} weight={categories.find((c) => c.id === place.category)?.weight} onClose={onClose} />
+          <OsmDetails
+            place={place}
+            colour={colourOf(place.category)}
+            weight={categories.find((c) => c.id === place.category)?.weight}
+            onClose={onClose}
+          />
         ) : (
           <form noValidate onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
             <div className="flex-1 space-y-5 overflow-y-auto px-4 py-4 text-sm">
@@ -258,8 +267,8 @@ function OsmDetails({ place, colour, weight, onClose }) {
         <p className="flex items-start gap-2 rounded-md border-2 border-dashed border-ink bg-white px-3 py-2.5">
           <Info size={16} strokeWidth={2.5} className="mt-0.5 shrink-0" aria-hidden="true" />
           <span>
-            This place comes from OpenStreetMap. Its name, category and shape are read-only here and are refreshed by each
-            monthly import; fix mistakes in OpenStreetMap itself. You can still disable it from the list.
+            This place comes from OpenStreetMap. Its name, category and shape are read-only here and are refreshed by
+            each monthly import; fix mistakes in OpenStreetMap itself. You can still disable it from the list.
           </span>
         </p>
         <dl className="divide-y divide-concrete-200 rounded-md border border-concrete-300 bg-white">
@@ -287,7 +296,7 @@ function OsmDetails({ place, colour, weight, onClose }) {
       </div>
       <footer className="flex items-center justify-end gap-2 border-t border-concrete-300 bg-white px-4 py-3">
         <button type="button" className="btn-secondary" onClick={onClose}>
-          Close
+          Done
         </button>
       </footer>
     </>

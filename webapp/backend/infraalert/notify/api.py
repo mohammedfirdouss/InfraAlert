@@ -90,9 +90,7 @@ def subscribe(
     token = subscriptions.start_verification(session, report_id, body.email, key)
     session.commit()
     try:
-        deps.mailer.send(
-            verification_email(body.email, settings.public_base_url, report_id, token)
-        )
+        deps.mailer.send(verification_email(body.email, settings.public_base_url, report_id, token))
     except Exception as exc:
         logger.exception("Failed to send a verification email for report %s", report_id)
         raise HTTPException(503, detail="email_unavailable") from exc
@@ -110,7 +108,9 @@ def verify(report_id: uuid.UUID, body: VerifyRequest, session: SessionDep) -> Ve
 
 
 @router.post("/unsubscribe")
-def unsubscribe(body: UnsubscribeRequest, session: SessionDep, deps: DepsDep) -> UnsubscribeResponse:
+def unsubscribe(
+    body: UnsubscribeRequest, session: SessionDep, deps: DepsDep
+) -> UnsubscribeResponse:
     if not subscriptions.unsubscribe(session, deps.settings.rate_limit_secret, body.token):
         raise HTTPException(400, detail="invalid_token")
     session.commit()

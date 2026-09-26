@@ -69,8 +69,16 @@ function Highlight({ place, colour }) {
   const Shape = shape.kind === 'polygon' ? Polygon : Polyline
   return (
     <>
-      <Shape positions={shape.latlngs} pathOptions={{ color: INK, weight: 9, opacity: 0.9, fill: false }} interactive={false} />
-      <Shape positions={shape.latlngs} pathOptions={{ color: colour, weight: 5, opacity: 1, fill: false }} interactive={false}>
+      <Shape
+        positions={shape.latlngs}
+        pathOptions={{ color: INK, weight: 9, opacity: 0.9, fill: false }}
+        interactive={false}
+      />
+      <Shape
+        positions={shape.latlngs}
+        pathOptions={{ color: colour, weight: 5, opacity: 1, fill: false }}
+        interactive={false}
+      >
         {label}
       </Shape>
     </>
@@ -110,7 +118,16 @@ function FitOnce({ places, visible }) {
  *   className?: string,
  * }} props
  */
-export default function PlacesMap({ places, allPlaces, categoryIds, highlightedId, onHover, onSelect, visible, className = '' }) {
+export default function PlacesMap({
+  places,
+  allPlaces,
+  categoryIds,
+  highlightedId,
+  onHover,
+  onSelect,
+  visible,
+  className = '',
+}) {
   const colours = useMemo(
     () => Object.fromEntries(categoryIds.map((id) => [id, categoryColour(id, categoryIds)])),
     [categoryIds],
@@ -131,9 +148,17 @@ export default function PlacesMap({ places, allPlaces, categoryIds, highlightedI
       >
         <TileLayer url={tileLayer.url} attribution={tileLayer.attribution} />
         {places?.map((place) => (
-          <Feature key={place.id} place={place} colour={colourOf(place.category)} onHover={onHover} onSelect={onSelect} />
+          <Feature
+            key={place.id}
+            place={place}
+            colour={colourOf(place.category)}
+            onHover={onHover}
+            onSelect={onSelect}
+          />
         ))}
-        {highlighted && <Highlight key={`hl-${highlighted.id}`} place={highlighted} colour={colourOf(highlighted.category)} />}
+        {highlighted && (
+          <Highlight key={`hl-${highlighted.id}`} place={highlighted} colour={colourOf(highlighted.category)} />
+        )}
         <FitOnce places={allPlaces} visible={visible} />
       </MapContainer>
 
@@ -146,7 +171,9 @@ export default function PlacesMap({ places, allPlaces, categoryIds, highlightedI
             <li key={id} className="flex items-center gap-1.5">
               <span
                 aria-hidden="true"
-                className={id === 'major_road' ? 'h-1 w-3.5 rounded-full' : 'h-2.5 w-2.5 rounded-full border border-ink'}
+                className={
+                  id === 'major_road' ? 'h-1 w-3.5 rounded-full' : 'h-2.5 w-2.5 rounded-full border border-ink'
+                }
                 style={{ backgroundColor: colourOf(id) }}
               />
               {categoryLabel(id)}

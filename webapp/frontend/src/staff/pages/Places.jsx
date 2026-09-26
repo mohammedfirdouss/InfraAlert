@@ -24,7 +24,9 @@ export default function Places() {
   const canEdit = hasRole(staff, 'admin')
 
   const [data, setData] = useState(
-    /** @type {{ places: import('../api.js').Place[], categories: import('../api.js').PlaceCategory[], last_import_at: string | null } | null} */ (null),
+    /** @type {{ places: import('../api.js').Place[], categories: import('../api.js').PlaceCategory[], last_import_at: string | null } | null} */ (
+      null
+    ),
   )
   const [loadError, setLoadError] = useState('')
   const [filters, setFilters] = useState(NO_FILTERS)
@@ -40,7 +42,13 @@ export default function Places() {
     setLoadError('')
     setData(null)
     getPlaces()
-      .then((body) => setData({ places: body.places ?? [], categories: body.categories ?? [], last_import_at: body.last_import_at ?? null }))
+      .then((body) =>
+        setData({
+          places: body.places ?? [],
+          categories: body.categories ?? [],
+          last_import_at: body.last_import_at ?? null,
+        }),
+      )
       .catch((error) => setLoadError(describeError(error)))
   }, [])
 

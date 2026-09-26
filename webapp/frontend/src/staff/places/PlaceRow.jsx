@@ -31,7 +31,11 @@ export function SourceTag({ place }) {
 export function CategoryTag({ category, colour }) {
   return (
     <span className="tag">
-      <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full border border-ink" style={{ backgroundColor: colour }} />
+      <span
+        aria-hidden="true"
+        className="h-2.5 w-2.5 rounded-full border border-ink"
+        style={{ backgroundColor: colour }}
+      />
       {categoryLabel(category)}
     </span>
   )
@@ -108,7 +112,9 @@ function PlaceRow({ place, colour, highlighted, canEdit, onHover, onOpen, onSetE
     >
       {highlighted && <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-signal-400" />}
       <div className={`grid gap-1.5 ${PLACE_COLS} ${place.enabled ? '' : 'text-asphalt-500'}`}>
-        <span className={`font-bold ${place.name ? 'text-ink' : 'italic text-asphalt-500'} ${place.enabled ? '' : 'line-through decoration-asphalt-400'}`}>
+        <span
+          className={`font-bold ${place.name ? 'text-ink' : 'italic text-asphalt-500'} ${place.enabled ? '' : 'line-through decoration-asphalt-400'}`}
+        >
           {name}
         </span>
         <span>
@@ -128,19 +134,19 @@ function PlaceRow({ place, colour, highlighted, canEdit, onHover, onOpen, onSetE
         </span>
         <span className="md:text-right">
           {canEdit && (
-          <button
-            type="button"
-            className="btn-ghost -mx-3 text-sm"
-            onClick={() => onOpen(place)}
-            aria-label={manual ? `Edit ${name}` : `Details for ${name}`}
-          >
-            {manual ? (
-              <Pencil size={14} strokeWidth={2.5} aria-hidden="true" />
-            ) : (
-              <Eye size={14} strokeWidth={2.5} aria-hidden="true" />
-            )}
-            {manual ? 'Edit' : 'Details'}
-          </button>
+            <button
+              type="button"
+              className="btn-ghost -mx-3 text-sm"
+              onClick={() => onOpen(place)}
+              aria-label={manual ? `Edit ${name}` : `Details for ${name}`}
+            >
+              {manual ? (
+                <Pencil size={14} strokeWidth={2.5} aria-hidden="true" />
+              ) : (
+                <Eye size={14} strokeWidth={2.5} aria-hidden="true" />
+              )}
+              {manual ? 'Edit' : 'Details'}
+            </button>
           )}
         </span>
       </div>

@@ -43,7 +43,10 @@ def upgrade() -> None:
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("used_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
         ),
         sa.ForeignKeyConstraint(
             ["contact_id"],
@@ -60,9 +63,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id", name=op.f("pk_contact_verifications")),
         sa.UniqueConstraint("token_hash", name=op.f("uq_contact_verifications_token_hash")),
     )
-    op.create_index(
-        "ix_contact_verifications_contact_id", "contact_verifications", ["contact_id"]
-    )
+    op.create_index("ix_contact_verifications_contact_id", "contact_verifications", ["contact_id"])
     op.create_index(
         "ix_contact_verifications_report_id_created_at",
         "contact_verifications",
@@ -90,7 +91,10 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
         ),
         sa.Column("sent_at", sa.DateTime(timezone=True), nullable=True),
         sa.CheckConstraint(

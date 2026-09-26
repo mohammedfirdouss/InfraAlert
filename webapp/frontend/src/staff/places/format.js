@@ -9,7 +9,9 @@
 
 /** "fire_station" → "Fire station" */
 export function categoryLabel(id) {
-  const words = String(id ?? '').replace(/_/g, ' ').trim()
+  const words = String(id ?? '')
+    .replace(/_/g, ' ')
+    .trim()
   return words ? words[0].toUpperCase() + words.slice(1) : 'Uncategorised'
 }
 

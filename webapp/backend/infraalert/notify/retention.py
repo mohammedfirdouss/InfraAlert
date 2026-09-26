@@ -77,9 +77,7 @@ def run_retention(session: Session) -> RetentionResult:
         select(ContactVerification.id).where(ContactVerification.contact_id == Contact.id)
     )
     contacts = session.execute(
-        delete(Contact)
-        .where(~needed_by_report, ~verification_pending)
-        .returning(Contact.id)
+        delete(Contact).where(~needed_by_report, ~verification_pending).returning(Contact.id)
     ).all()
 
     return RetentionResult(

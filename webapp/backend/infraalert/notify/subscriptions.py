@@ -114,9 +114,7 @@ def verify(session: Session, report_id: uuid.UUID, token: str) -> str | None:
     contact = session.get_one(Contact, verification.contact_id)
     if contact.verified_at is None:
         contact.verified_at = func.now()
-    session.execute(
-        update(Report).where(Report.id == report_id).values(contact_id=contact.id)
-    )
+    session.execute(update(Report).where(Report.id == report_id).values(contact_id=contact.id))
     # The address is personal data and stays out of the audit log.
     session.add(
         AuditLog(
