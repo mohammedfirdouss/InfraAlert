@@ -184,9 +184,7 @@ def test_verify_subscribes_the_report_and_shows_the_masked_address(
         assert report.contact_id is not None
         contact = session.get_one(Contact, report.contact_id)
         assert contact.verified_at is not None
-        audit = session.scalars(
-            select(AuditLog).where(AuditLog.entity_id == report_id)
-        ).one()
+        audit = session.scalars(select(AuditLog).where(AuditLog.entity_id == report_id)).one()
     assert audit.action == "report.updates_subscribed" and audit.staff_id is None
     assert "alice" not in str(audit.detail)
 

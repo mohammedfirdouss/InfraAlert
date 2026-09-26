@@ -121,6 +121,8 @@ describe('UpdatesSignup', () => {
   test.each([
     ['captcha_failed', new ApiError(400, 'captcha_failed'), MESSAGES.captchaFailed],
     ['rate_limited', new ApiError(429, 'rate_limited'), MESSAGES.rateLimited],
+    ['email_unavailable', new ApiError(503, 'email_unavailable'), MESSAGES.emailUnavailable],
+    ['email_disabled', new ApiError(503, 'email_disabled'), MESSAGES.emailUnavailable],
     ['network failure', new TypeError('Failed to fetch'), MESSAGES.network],
     ['unknown error', new ApiError(500, null), MESSAGES.unknown],
   ])('%s shows a plain message and resets the captcha', async (_, error, message) => {

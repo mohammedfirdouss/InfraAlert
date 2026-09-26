@@ -131,9 +131,7 @@ def verify_link(email: Email) -> tuple[str, str]:
     return match.group(1), match.group(3)
 
 
-def subscribe(
-    client: TestClient, report_id: uuid.UUID, email: str, ip: str = "203.0.113.1"
-) -> int:
+def subscribe(client: TestClient, report_id: uuid.UUID, email: str, ip: str = "203.0.113.1") -> int:
     resp = client.post(
         f"/api/reports/{report_id}/subscribe",
         json={"email": email, "captcha_token": "ok"},
