@@ -204,7 +204,9 @@ def test_triage_classifies_scores_and_suggests(
     team = make_team(deps, "Plumbers", [IssueType.WATER_LEAK])
     incident = make_incident(deps, issue_type=None, score=None)
 
-    assert act(client, dispatcher, incident, "triage", {"issue_type": "water_leak"}).status_code == 204
+    assert (
+        act(client, dispatcher, incident, "triage", {"issue_type": "water_leak"}).status_code == 204
+    )
 
     item = get(client, dispatcher, incident)["incident"]
     assert item["item"]["status"] == "triaged"
@@ -311,7 +313,9 @@ def test_closing_as_invalid_needs_a_reason_and_frees_the_team(
     act(client, dispatcher, incident, "assign", {"team_id": str(team)})
 
     assert act(client, dispatcher, incident, "close", {"reason": ""}).status_code == 422
-    assert act(client, dispatcher, incident, "close", {"reason": "Not a city road"}).status_code == 204
+    assert (
+        act(client, dispatcher, incident, "close", {"reason": "Not a city road"}).status_code == 204
+    )
 
     with deps.sessions() as session:
         open_assignments = session.scalar(
@@ -346,8 +350,10 @@ def test_merge_moves_reports_and_the_citizen_follows_the_survivor(
     assert len(target["reports"]) == 3
     assert target["priority_inputs"]["report_count"] == 3  # rescored
     # The duplicate's team is free again; the citizen sees the survivor's progress.
-    assert all(t["busy_with_incident_id"] != str(duplicate) for t in
-               get(client, dispatcher, survivor)["candidate_teams"])
+    assert all(
+        t["busy_with_incident_id"] != str(duplicate)
+        for t in get(client, dispatcher, survivor)["candidate_teams"]
+    )
     assert client.get(f"/api/reports/{moved_report}").json()["status"] == "team_assigned"
 
 

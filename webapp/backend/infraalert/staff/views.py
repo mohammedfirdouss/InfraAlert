@@ -143,7 +143,9 @@ def queue(session: Session, tab: Tab, issue_type: IssueType | None = None) -> li
         stmt = stmt.order_by(Incident.updated_at.desc())
     else:
         # Assigned work sinks below work still waiting for a team.
-        waiting = case((Incident.status.in_([IncidentStatus.NEW, IncidentStatus.TRIAGED]), 0), else_=1)
+        waiting = case(
+            (Incident.status.in_([IncidentStatus.NEW, IncidentStatus.TRIAGED]), 0), else_=1
+        )
         stmt = stmt.order_by(waiting, rank.desc(), Incident.created_at)
 
     rows = session.execute(stmt.limit(500)).all()
@@ -173,9 +175,7 @@ def queue(session: Session, tab: Tab, issue_type: IssueType | None = None) -> li
     return items
 
 
-def _hazard_flags(
-    session: Session, incident_ids: list[uuid.UUID]
-) -> dict[uuid.UUID, list[str]]:
+def _hazard_flags(session: Session, incident_ids: list[uuid.UUID]) -> dict[uuid.UUID, list[str]]:
     """The union of hazard flags across each incident's reports."""
     if not incident_ids:
         return {}
@@ -343,7 +343,9 @@ def _item(session: Session, incident: Incident) -> QueueItem:
         .where(Report.incident_id == incident.id)
         .order_by(Report.submitted_at.desc(), Report.id)
     ).first()
-    suggested = session.get(Team, incident.suggested_team_id) if incident.suggested_team_id else None
+    suggested = (
+        session.get(Team, incident.suggested_team_id) if incident.suggested_team_id else None
+    )
     assigned = session.execute(
         select(Team)
         .join(Assignment, Assignment.team_id == Team.id)
@@ -386,9 +388,7 @@ def candidate_teams(session: Session, incident_id: uuid.UUID) -> list[CandidateT
         return []
     here = select(Incident.location).where(Incident.id == incident_id).scalar_subquery()
     busy = aliased(Assignment)
-    skilled = (
-        Team.skills.contains([incident.issue_type]) if incident.issue_type else literal(False)
-    )
+    skilled = Team.skills.contains([incident.issue_type]) if incident.issue_type else literal(False)
     distance = func.ST_Distance(Team.base_location, here)
     rows = session.execute(
         select(Team.id, Team.name, skilled, busy.incident_id, distance)
@@ -424,7 +424,10 @@ def nearby_incidents(session: Session, incident_id: uuid.UUID) -> list[NearbyInc
     here = select(Incident.location).where(Incident.id == incident_id).scalar_subquery()
     distance = func.ST_Distance(Incident.location, here)
     count = (
-        select(func.count()).where(Report.incident_id == Incident.id).correlate(Incident).scalar_subquery()
+        select(func.count())
+        .where(Report.incident_id == Incident.id)
+        .correlate(Incident)
+        .scalar_subquery()
     )
     headline = (
         select(func.coalesce(Report.summary, Report.description))
@@ -444,6 +447,4 @@ def nearby_incidents(session: Session, incident_id: uuid.UUID) -> list[NearbyInc
         .order_by(distance)
         .limit(20)
     ).all()
-    return [
-        NearbyIncident(r[0], r[1], r[2], round(float(r[3]), 1), r[4], r[5] or "") for r in rows
-    ]
+    return [NearbyIncident(r[0], r[1], r[2], round(float(r[3]), 1), r[4], r[5] or "") for r in rows]

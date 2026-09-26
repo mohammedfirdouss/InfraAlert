@@ -71,9 +71,7 @@ def build_deps(settings: Settings) -> Deps:
     staff_auth: StaffTokenVerifier
     if settings.staff_auth_backend == "identity_platform":
         assert settings.gcp_project
-        staff_auth = IdentityPlatformVerifier(
-            settings.gcp_project, settings.staff_sign_in_provider
-        )
+        staff_auth = IdentityPlatformVerifier(settings.gcp_project, settings.staff_sign_in_provider)
     else:
         staff_auth = DevVerifier()
 

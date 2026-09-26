@@ -73,9 +73,7 @@ class Settings:
             service_url=_require("SERVICE_URL").rstrip("/") if cloud else None,
             tasks_service_account=_require("TASKS_SERVICE_ACCOUNT") if cloud else None,
             extractor_backend=cast(Literal["vertex", "disabled"], extractor),
-            gcp_project=(
-                _require("GOOGLE_CLOUD_PROJECT") if vertex or identity_platform else None
-            ),
+            gcp_project=(_require("GOOGLE_CLOUD_PROJECT") if vertex or identity_platform else None),
             gcp_location=_require("GOOGLE_CLOUD_REGION") if vertex else None,
             gemini_model=_require("GEMINI_MODEL") if vertex else None,
             staff_auth_backend=cast(Literal["identity_platform", "dev"], staff_auth),

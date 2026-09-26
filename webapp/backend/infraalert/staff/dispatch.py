@@ -179,20 +179,22 @@ def merge(
     locked = {i: _lock(session, i, "merge") for i in (first, second)}
     source, target = locked[incident_id], locked[into_incident_id]
 
-    moved = session.execute(
-        update(Report)
-        .where(Report.incident_id == source.id)
-        .values(incident_id=target.id)
-        .returning(Report.id)
-    ).scalars().all()
+    moved = (
+        session.execute(
+            update(Report)
+            .where(Report.incident_id == source.id)
+            .values(incident_id=target.id)
+            .returning(Report.id)
+        )
+        .scalars()
+        .all()
+    )
     team = _end_assignment(session, source.id)
     source.status = S.CLOSED_DUPLICATE
     source.merged_into_id = target.id
     session.flush()
     rescore(session, target)
-    _audit(
-        session, staff, "merged", source.id, into=target.id, reports=len(moved), team_id=team
-    )
+    _audit(session, staff, "merged", source.id, into=target.id, reports=len(moved), team_id=team)
     _audit(session, staff, "absorbed", target.id, source=source.id, reports=len(moved))
 
 
@@ -201,9 +203,7 @@ def split(
 ) -> uuid.UUID:
     """Move some of an incident's reports into a new incident. Returns its id."""
     incident = _lock(session, incident_id, "split")
-    own = set(
-        session.scalars(select(Report.id).where(Report.incident_id == incident.id)).all()
-    )
+    own = set(session.scalars(select(Report.id).where(Report.incident_id == incident.id)).all())
     chosen = set(report_ids)
     if not chosen or not chosen <= own:
         raise DispatchError(422, "reports_not_in_incident")
