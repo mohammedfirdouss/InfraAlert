@@ -22,7 +22,12 @@ from infraalert.config import Settings
 from infraalert.db.models import Staff, StaffRole
 from infraalert.deps import Deps
 from infraalert.staff.identity import DevVerifier
-from tests.citizen.conftest import FakeCaptcha, FakeStorage, FakeTasks
+from tests.citizen import conftest as citizen
+
+
+class FakeStorage(citizen.FakeStorage):
+    def view_url(self, object_name: str) -> str:
+        return f"https://storage.test/{object_name}?view"
 
 
 def auth(email: str) -> dict[str, str]:
@@ -56,9 +61,9 @@ def deps(engine: Engine) -> Iterator[Deps]:
             sessions=sessionmaker(
                 bind=conn, join_transaction_mode="create_savepoint", expire_on_commit=False
             ),
-            captcha=FakeCaptcha(),
+            captcha=citizen.FakeCaptcha(),
             storage=FakeStorage(),
-            tasks=FakeTasks(),
+            tasks=citizen.FakeTasks(),
             staff_auth=DevVerifier(),
         )
         trans.rollback()

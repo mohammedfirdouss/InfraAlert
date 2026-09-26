@@ -13,8 +13,8 @@ from infraalert.citizen import api as citizen_api
 from infraalert.config import Settings
 from infraalert.deps import Deps, build_deps
 from infraalert.processing import api as processing_api
-from infraalert.staff import api as staff_api
 from infraalert.staff import admin_api as staff_admin_api
+from infraalert.staff import api as staff_api
 from infraalert.storage import LocalPhotoStorage
 
 # The built frontend: next to the backend in the Docker image (/app/frontend/dist),

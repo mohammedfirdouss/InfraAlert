@@ -29,9 +29,19 @@ DEV_TEAMS = [
     ("Westlands Roads Crew", [IssueType.POTHOLE, IssueType.ROAD_DAMAGE], -1.2676, 36.8108),
     ("CBD Water & Sewer", [IssueType.WATER_LEAK, IssueType.SEWAGE], -1.2864, 36.8172),
     ("Eastlands Water Response", [IssueType.WATER_LEAK], -1.2833, 36.8833),
-    ("Industrial Area Electrical", [IssueType.POWER_OUTAGE, IssueType.BROKEN_STREETLIGHT], -1.3031, 36.8515),
+    (
+        "Industrial Area Electrical",
+        [IssueType.POWER_OUTAGE, IssueType.BROKEN_STREETLIGHT],
+        -1.3031,
+        36.8515,
+    ),
     ("Kilimani Street Lighting", [IssueType.BROKEN_STREETLIGHT], -1.2921, 36.7856),
-    ("Langata General Maintenance", [IssueType.POTHOLE, IssueType.SEWAGE, IssueType.OTHER], -1.3350, 36.7700),
+    (
+        "Langata General Maintenance",
+        [IssueType.POTHOLE, IssueType.SEWAGE, IssueType.OTHER],
+        -1.3350,
+        36.7700,
+    ),
 ]
 
 # (name, category, WKT)

@@ -83,9 +83,7 @@ def test_deactivated_staff_are_forbidden(client: TestClient, staff: StaffFactory
     assert response.status_code == 403
 
 
-@pytest.mark.parametrize(
-    ("method", "path", "minimum"), [e for e in ENDPOINTS if e[2] is not None]
-)
+@pytest.mark.parametrize(("method", "path", "minimum"), [e for e in ENDPOINTS if e[2] is not None])
 def test_roles_below_the_minimum_are_forbidden(
     client: TestClient, staff: StaffFactory, method: str, path: str, minimum: StaffRole
 ) -> None:
@@ -218,7 +216,10 @@ def test_invalid_team_updates_are_rejected(
 ) -> None:
     headers = auth(staff(StaffRole.SUPERVISOR).email)
     team = client.post("/api/staff/teams", json=team_body(), headers=headers).json()
-    assert client.patch(f"/api/staff/teams/{team['id']}", json=body, headers=headers).status_code == 422
+    assert (
+        client.patch(f"/api/staff/teams/{team['id']}", json=body, headers=headers).status_code
+        == 422
+    )
 
 
 def test_unknown_team_is_not_found(client: TestClient, staff: StaffFactory) -> None:
@@ -348,9 +349,7 @@ def test_members_lists_every_status(client: TestClient, staff: StaffFactory) -> 
     assert members[str(gone.id)] == "deactivated"
 
 
-def test_update_member_role_and_active(
-    client: TestClient, staff: StaffFactory, deps: Deps
-) -> None:
+def test_update_member_role_and_active(client: TestClient, staff: StaffFactory, deps: Deps) -> None:
     admin = staff(StaffRole.ADMIN)
     member = staff(StaffRole.DISPATCHER)
     path = f"/api/staff/members/{member.id}"
@@ -395,7 +394,9 @@ def test_admins_may_make_harmless_changes_to_themselves(
 ) -> None:
     me = staff(StaffRole.ADMIN)
     response = client.patch(
-        f"/api/staff/members/{me.id}", json={"role": "admin", "active": True}, headers=auth(me.email)
+        f"/api/staff/members/{me.id}",
+        json={"role": "admin", "active": True},
+        headers=auth(me.email),
     )
     assert response.status_code == 200
 

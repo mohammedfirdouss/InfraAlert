@@ -241,7 +241,7 @@ def update_team(
         _commit_or_conflict(session, "team_name_taken")
 
     after = _team_rows(session, team_id)[0]
-    warning = None
+    warning: Literal["team_busy_until_assignment_ends"] | None = None
     if not after.active and after.busy_with_incident_id is not None:
         warning = "team_busy_until_assignment_ends"
     return TeamUpdateResponse(**after.model_dump(), warning=warning)
@@ -285,9 +285,7 @@ def invite_member(body: InviteRequest, actor: Admin, session: SessionDep) -> Mem
     exists = session.scalars(select(Staff.id).where(func.lower(Staff.email) == body.email))
     if exists.first() is not None:
         raise HTTPException(409, detail="already_staff")
-    staff = Staff(
-        id=uuid.uuid4(), email=body.email, display_name=body.display_name, role=body.role
-    )
+    staff = Staff(id=uuid.uuid4(), email=body.email, display_name=body.display_name, role=body.role)
     session.add(staff)
     _audit(session, actor, "staff.invited", "staff", staff.id, body.model_dump(mode="json"))
     _commit_or_conflict(session, "already_staff")
