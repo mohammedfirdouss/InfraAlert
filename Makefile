@@ -1,163 +1,125 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
-AGENTS_DIR   := agents
-MCP_DIR      := mcp_server
-WEBAPP_DIR   := webapp/backend
+BACKEND_DIR  := webapp/backend
+FRONTEND_DIR := webapp/frontend
 
-# All Cloud Run service names in deployment order
-SERVICES := \
-	mcp-server \
-	platform-integration \
-	issue-detection \
-	priority-analysis \
-	resource-coordination \
-	orchestrator \
-	webapp
+# Database the backend tests create their throwaway databases on (`make db-up`).
+TEST_DATABASE_URL ?= postgresql+psycopg://infraalert:infraalert@localhost:5433/infraalert
 
-# Directories that contain agent code (mirrors docker-compose services)
-AGENT_PACKAGES := \
-	agents/issue_detection \
-	agents/priority_analysis \
-	agents/resource_coordination \
-	agents/platform_integration \
-	agents/orchestrator \
-	mcp_server \
-	webapp/backend
+# ---- Deployment (see docs/deploy.md for the one-time setup) -------------------
+PROJECT      ?= $(shell gcloud config get-value project 2>/dev/null)
+REGION       ?= us-central1
+SERVICE      ?= infraalert
+MIGRATE_JOB  ?= $(SERVICE)-migrate
+AR_REPO      ?= infraalert
+TAG          ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo latest)
+IMAGE        ?= $(REGION)-docker.pkg.dev/$(PROJECT)/$(AR_REPO)/$(SERVICE):$(TAG)
+# Frontend build settings, passed through from the environment into the image.
+VITE_VARS := VITE_MAPTILER_KEY VITE_TURNSTILE_SITE_KEY VITE_MAP_DEFAULT_CENTER \
+             VITE_EMERGENCY_NUMBER VITE_STAFF_AUTH VITE_FIREBASE_API_KEY \
+             VITE_FIREBASE_AUTH_DOMAIN VITE_FIREBASE_PROJECT_ID VITE_STAFF_SIGN_IN_PROVIDER
 
-# Cloud Run region (override on command line if needed)
-REGION ?= us-central1
-
-.PHONY: help install-dev check lint format test \
-        docker-up docker-down build-all \
-        deploy-all deploy-service \
-        setup-tools setup-gcloud clean \
-        db-up db-migrate db-revision
+.PHONY: help env install-dev lint format check test test-backend test-frontend \
+        db-up db-migrate db-revision seed-dev dev docker-up docker-down \
+        image deploy-migrate deploy setup-tools setup-gcloud clean
 
 help: ## Print all targets with descriptions
 	@echo ""
 	@echo "InfraAlert — available make targets"
-	@echo "======================================"
-	@awk 'BEGIN {FS = ":.*##"; printf ""} \
-	      /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
+	@echo "===================================="
+	@awk 'BEGIN {FS = ":.*##"} \
+	      /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 	@echo ""
-	@echo "Variables you can override on the command line:"
-	@echo "  REGION=<gcp-region>    (default: us-central1)"
-	@echo "  SERVICE=<name>         (used by deploy-service)"
+	@echo "Deploy variables: PROJECT REGION SERVICE MIGRATE_JOB AR_REPO TAG IMAGE"
 	@echo ""
 
-install-dev: ## Install all Python deps via uv for all agents + webapp backend
-	@echo "==> Installing development dependencies …"
+env: ## Create .env from .env.example (if it doesn't exist)
+	bash scripts/setup-env.sh
+
+install-dev: ## Install backend (uv) and frontend (npm) dependencies
 	@which uv > /dev/null 2>&1 || (echo "uv not found — run 'make setup-tools' first" && exit 1)
 	uv sync --all-packages --all-extras
-	@echo "==> Done."
+	cd $(FRONTEND_DIR) && npm install
 
+lint: ## Ruff lint the backend
+	uvx ruff check $(BACKEND_DIR)/
+	uvx ruff format --check $(BACKEND_DIR)/
 
-check: lint ## Run ruff lint + mypy + pytest across all agents
-	@echo "==> Running mypy …"
-	uv run mypy $(AGENTS_DIR)/ $(MCP_DIR)/ $(WEBAPP_DIR)/
+format: ## Ruff format the backend (and fix import order)
+	uvx ruff check --select I --fix $(BACKEND_DIR)/
+	uvx ruff format $(BACKEND_DIR)/
+
+check: lint ## Lint + mypy + all tests
+	uv run --with mypy mypy $(BACKEND_DIR)/infraalert
 	@$(MAKE) --no-print-directory test
 
-lint: ## Ruff check agents/ mcp_server/ webapp/backend/
-	@echo "==> Ruff lint …"
-	uv run ruff check $(AGENTS_DIR)/ $(MCP_DIR)/ $(WEBAPP_DIR)/
+test: test-backend test-frontend ## Run backend pytest and frontend vitest
 
-format: ## Ruff format agents/ mcp_server/ webapp/backend/
-	@echo "==> Ruff format …"
-	uv run ruff format $(AGENTS_DIR)/ $(MCP_DIR)/ $(WEBAPP_DIR)/
+test-backend: ## Backend pytest (DB tests use TEST_DATABASE_URL; run `make db-up` first)
+	TEST_DATABASE_URL='$(TEST_DATABASE_URL)' uv run pytest -q
 
-# Each package has its own tests/ package, so pytest runs once per package
-# (collecting them together makes the `tests` package names collide).
-test: ## Run pytest in each package (agents, mcp_server, webapp/backend)
-	@echo "==> Running tests …"
-	@set -e; for pkg in $(AGENT_PACKAGES); do \
-		echo "--- pytest: $$pkg ---"; \
-		(cd $$pkg && uv run pytest -q); \
-	done
+test-frontend: ## Frontend vitest
+	cd $(FRONTEND_DIR) && npm test
 
 db-up: ## Start only the PostGIS database (localhost:5433)
 	docker compose up -d --wait db
 
 db-migrate: db-up ## Apply all migrations to the local database
-	cd $(WEBAPP_DIR) && uv run alembic upgrade head
+	cd $(BACKEND_DIR) && uv run alembic upgrade head
 
 db-revision: db-up ## Autogenerate a migration  (usage: make db-revision MSG="add x")
 ifndef MSG
 	$(error MSG is not set. Usage: make db-revision MSG="describe the change")
 endif
-	cd $(WEBAPP_DIR) && uv run alembic revision --autogenerate -m "$(MSG)"
+	cd $(BACKEND_DIR) && uv run alembic revision --autogenerate -m "$(MSG)"
 
-docker-up: ## docker compose up --build (starts all local services)
+seed-dev: ## Add the development staff, teams and sensitive places (needs .env)
+	@test -f .env || (echo ".env not found — run 'make env' first" && exit 1)
+	uv run --env-file .env python -m infraalert.cli seed-dev
+
+# Both servers run from the repo root, so var/ (uploads, outbox) lands in ./var.
+# Ctrl-C stops both.
+dev: ## Backend on :8000 (auto-reload) + Vite dev server on :5173
+	@test -f .env || (echo ".env not found — run 'make env' first" && exit 1)
+	@trap 'kill 0' INT TERM EXIT; \
+	uv run uvicorn main:app --app-dir $(BACKEND_DIR) --reload --reload-dir $(BACKEND_DIR) \
+		--port 8000 & \
+	(cd $(FRONTEND_DIR) && npm run dev -- --port 5173 --strictPort) & \
+	wait
+
+docker-up: ## Build and run db + app in Docker (http://localhost:8000)
 	docker compose up --build
 
-docker-down: ## docker compose down (stops all local services)
+docker-down: ## Stop the Docker stack
 	docker compose down
 
-build-all: ## Build all Docker images (iterates SERVICES list)
-	@echo "==> Building all service images …"
-	@for svc in $(SERVICES); do \
-		echo "--- docker build: $$svc ---"; \
-		docker compose build $$svc; \
-	done
-	@echo "==> All images built."
+image: ## Build and push the service image to Artifact Registry (IMAGE=...)
+	@test -n "$(PROJECT)" || (echo "PROJECT is not set (gcloud config set project …)" && exit 1)
+	docker build --platform linux/amd64 -f webapp/Dockerfile \
+		$(foreach v,$(VITE_VARS),--build-arg $(v)) -t $(IMAGE) .
+	docker push $(IMAGE)
 
-deploy-all: ## Deploy all services to Cloud Run in order
-	@echo "==> Deploying all services to Cloud Run (region=$(REGION)) …"
-	@for svc in $(SERVICES); do \
-		echo "--- Deploying $$svc ---"; \
-		$(MAKE) deploy-service SERVICE=$$svc; \
-	done
-	@echo "==> All services deployed."
+deploy-migrate: ## Run migrations as the Cloud Run job MIGRATE_JOB with IMAGE
+	gcloud run jobs update $(MIGRATE_JOB) --image $(IMAGE) --region $(REGION)
+	gcloud run jobs execute $(MIGRATE_JOB) --region $(REGION) --wait
 
-deploy-service: ## Deploy a single Cloud Run service  (usage: make deploy-service SERVICE=<name>)
-ifndef SERVICE
-	$(error SERVICE is not set. Usage: make deploy-service SERVICE=<name>)
-endif
-	@echo "==> Submitting build for service '$(SERVICE)' …"
-	gcloud builds submit \
-		--tag gcr.io/$$(gcloud config get-value project)/$(SERVICE):latest \
-		$$(case "$(SERVICE)" in \
-			mcp-server)             echo "mcp_server/" ;; \
-			issue-detection)        echo "agents/issue_detection/" ;; \
-			priority-analysis)      echo "agents/priority_analysis/" ;; \
-			resource-coordination)  echo "agents/resource_coordination/" ;; \
-			platform-integration)   echo "agents/platform_integration/" ;; \
-			orchestrator)           echo "agents/orchestrator/" ;; \
-			webapp)                 echo "webapp/" ;; \
-			*) echo "." ;; \
-		esac)
-	@echo "==> Deploying '$(SERVICE)' to Cloud Run …"
-	gcloud run deploy $(SERVICE) \
-		--image gcr.io/$$(gcloud config get-value project)/$(SERVICE):latest \
-		--region $(REGION) \
-		--platform managed \
-		--allow-unauthenticated \
-		--env-vars-file .env
+deploy: image deploy-migrate ## Build, push, migrate, then roll out the Cloud Run service
+	gcloud run deploy $(SERVICE) --image $(IMAGE) --region $(REGION)
 
 setup-tools: ## Install local toolchain (uv; gcloud optional)
-	@echo "==> Setting up toolchain …"
-	chmod +x scripts/setup-uv.sh scripts/setup-gcloud.sh scripts/setup-env.sh
 	bash scripts/setup-uv.sh
 	@if command -v gcloud >/dev/null 2>&1; then \
-		echo "==> gcloud detected; running Cloud SDK setup …"; \
 		bash scripts/setup-gcloud.sh; \
 	else \
-		echo "==> gcloud not found — skipping Cloud SDK setup (local dev unaffected)."; \
+		echo "==> gcloud not found — skipping (only needed to deploy)."; \
 		echo "   Install from: https://cloud.google.com/sdk/docs/install"; \
-		echo "   Then run: make setup-gcloud"; \
 	fi
-	@echo "==> Toolchain setup complete."
 
-setup-gcloud: ## Configure Google Cloud CLI/auth for deployment tasks
-	@echo "==> Running Cloud SDK setup …"
-	chmod +x scripts/setup-gcloud.sh
+setup-gcloud: ## Configure Google Cloud CLI/auth for deployment
 	bash scripts/setup-gcloud.sh
 
-clean: ## Remove __pycache__, .pytest_cache, dist directories
-	@echo "==> Cleaning build artefacts …"
-	find . -type d -name __pycache__    -not -path './.git/*' -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name .pytest_cache  -not -path './.git/*' -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name dist           -not -path './.git/*' -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name .mypy_cache    -not -path './.git/*' -exec rm -rf {} + 2>/dev/null || true
-	find . -name '*.pyc' -delete 2>/dev/null || true
-	@echo "==> Clean done."
+clean: ## Remove Python caches and the frontend build
+	find . -type d \( -name __pycache__ -o -name .pytest_cache -o -name .mypy_cache \) \
+		-not -path './.git/*' -not -path '*/node_modules/*' -exec rm -rf {} + 2>/dev/null || true
+	rm -rf $(FRONTEND_DIR)/dist

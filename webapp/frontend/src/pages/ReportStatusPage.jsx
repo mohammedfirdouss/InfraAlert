@@ -18,6 +18,7 @@ import {
 import { getReport } from '../api/client.js'
 import StatusTimeline, { STATUS_STEPS } from '../components/StatusTimeline.jsx'
 import LocationPreview from '../components/LocationPreview.jsx'
+import UpdatesSignup from '../components/UpdatesSignup.jsx'
 
 /** How often an open report is re-fetched while the page is visible. */
 export const POLL_INTERVAL_MS = 30_000
@@ -444,6 +445,12 @@ function ReportView({ report }) {
           <StatusTimeline status={report.status} />
         </div>
       </section>
+
+      <UpdatesSignup
+        reportId={report.report_id}
+        maskedEmail={report.updates_email_masked}
+        status={report.status}
+      />
 
       <section aria-labelledby="details-heading" className="card p-5 sm:p-6">
         <SectionHeading id="details-heading" no="02">

@@ -1,9 +1,14 @@
+# Local stack: PostGIS plus the single InfraAlert service with the development
+# backends (no Google Cloud needed). For day-to-day work `make db-up` + `make dev`
+# is faster; `make docker-up` runs the production image locally.
+
 networks:
   infra-network:
     driver: bridge
 
 volumes:
   db-data:
+  app-var:
 
 services:
 
@@ -29,148 +34,40 @@ services:
       timeout: 5s
       retries: 10
 
-  mcp-server:
+  # The whole service (backend + built frontend) on http://localhost:8000.
+  app:
     build:
-      context: ./mcp_server
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: webapp/Dockerfile
     ports:
-      - "8080:8080"
-    env_file:
-      - .env
-    networks:
-      - infra-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
-
-  # Build context is ./agents so the shared/ package is accessible in each Dockerfile
-  issue-detection:
-    build:
-      context: ./agents
-      dockerfile: issue_detection/Dockerfile
-    ports:
-      - "8081:8081"
-    env_file:
-      - .env
-    networks:
-      - infra-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
-
-  priority-analysis:
-    build:
-      context: ./agents
-      dockerfile: priority_analysis/Dockerfile
-    ports:
-      - "8082:8082"
-    env_file:
-      - .env
-    networks:
-      - infra-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
-
-  resource-coordination:
-    build:
-      context: ./agents
-      dockerfile: resource_coordination/Dockerfile
-    ports:
-      - "8083:8083"
-    env_file:
-      - .env
-    networks:
-      - infra-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8083/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
-
-  platform-integration:
-    build:
-      context: ./agents
-      dockerfile: platform_integration/Dockerfile
-    ports:
-      - "8084:8084"
-    env_file:
-      - .env
-    networks:
-      - infra-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8084/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
-
-  orchestrator:
-    build:
-      context: ./agents
-      dockerfile: orchestrator/Dockerfile
-    ports:
-      - "8085:8085"
-    env_file:
-      - .env
+      - "8000:8000"
     environment:
-      - ISSUE_DETECTION_URL=http://issue-detection:8081
-      - PRIORITY_ANALYSIS_URL=http://priority-analysis:8082
-      - RESOURCE_COORDINATION_URL=http://resource-coordination:8083
-      - PLATFORM_INTEGRATION_URL=http://platform-integration:8084
+      DATABASE_URL: postgresql+psycopg://infraalert:infraalert@db:5432/infraalert
+      # Cloudflare's always-pass Turnstile test secret (pairs with the frontend's test site key).
+      TURNSTILE_SECRET_KEY: 1x0000000000000000000000000000000AA
+      RATE_LIMIT_SECRET: dev-only-rate-limit-secret
+      TASKS_BACKEND: inline
+      STORAGE_BACKEND: local
+      LOCAL_UPLOAD_DIR: /app/var/uploads
+      PUBLIC_BASE_URL: http://localhost:8000
+      EXTRACTOR_BACKEND: disabled
+      STAFF_AUTH_BACKEND: dev
+      EMAIL_BACKEND: console
+      LOCAL_OUTBOX_DIR: /app/var/outbox
+    volumes:
+      # Uploaded photos and console emails.
+      - app-var:/app/var
     networks:
       - infra-network
+    # Development convenience: bring the schema up to date on every start.
+    command: ["sh", "-c", "alembic upgrade head && exec uvicorn main:app --host 0.0.0.0 --port 8000"]
     depends_on:
-      mcp-server:
-        condition: service_healthy
-      issue-detection:
-        condition: service_healthy
-      priority-analysis:
-        condition: service_healthy
-      resource-coordination:
-        condition: service_healthy
-      platform-integration:
+      db:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8085/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
-
-  webapp:
-    build:
-      context: ./webapp
-      dockerfile: Dockerfile
-    ports:
-      - "3000:8000"
-    env_file:
-      - .env
-    networks:
-      - infra-network
-    depends_on:
-      orchestrator:
-        condition: service_healthy
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
+      start_period: 20s

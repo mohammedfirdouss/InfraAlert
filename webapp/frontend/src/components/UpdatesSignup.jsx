@@ -5,7 +5,7 @@
  * used after they confirm it from the link we email them. The CAPTCHA token is
  * single-use, so the widget is reset after every request.
  */
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AlertCircle, AlertTriangle, BellRing, Check, Loader2, Mail, Send } from 'lucide-react'
 import { ApiError, subscribeToUpdates } from '../api/client.js'
 import TurnstileWidget from './TurnstileWidget.jsx'
@@ -82,6 +82,16 @@ function SignupForm({ reportId }) {
   const [sentTo, setSentTo] = useState(/** @type {string | null} */ (null))
   const turnstileRef = useRef(/** @type {{ reset: () => void } | null} */ (null))
   const emailRef = useRef(/** @type {HTMLInputElement | null} */ (null))
+  const sentHeadingRef = useRef(/** @type {HTMLHeadingElement | null} */ (null))
+  // Where focus goes after switching views, so keyboard and screen-reader users follow along.
+  const focusAfterSwitch = useRef(/** @type {'email' | 'sent' | null} */ (null))
+
+  useEffect(() => {
+    const target = focusAfterSwitch.current
+    focusAfterSwitch.current = null
+    if (target === 'sent') sentHeadingRef.current?.focus()
+    else if (target === 'email') emailRef.current?.focus()
+  }, [sentTo])
 
   /** @param {string | null} token */
   function handleCaptchaToken(token) {
@@ -110,6 +120,7 @@ function SignupForm({ reportId }) {
     setSubmitting(true)
     try {
       await subscribeToUpdates(reportId, { email: address, captcha_token: captchaToken })
+      focusAfterSwitch.current = 'sent'
       setSentTo(address)
     } catch (err) {
       handleError(err)
@@ -146,14 +157,18 @@ function SignupForm({ reportId }) {
     setEmail('')
     setEmailError('')
     setFormError('')
-    // Focus once the form is back on screen.
-    setTimeout(() => emailRef.current?.focus(), 0)
+    focusAfterSwitch.current = 'email'
   }
 
   if (sentTo) {
     return (
       <div>
-        <h2 id="updates-heading" className="flex items-center gap-2.5 text-lg font-black leading-tight">
+        <h2
+          id="updates-heading"
+          ref={sentHeadingRef}
+          tabIndex={-1}
+          className="flex items-center gap-2.5 text-lg font-black leading-tight"
+        >
           <Mail {...ICON} size={20} className="shrink-0" />
           Confirm your email
         </h2>
