@@ -25,7 +25,7 @@ const MAX_MB = Math.round(MAX_PHOTO_BYTES / (1024 * 1024))
  * @param {File} file
  * @returns {string | null}
  */
-export function photoContentType(file) {
+function photoContentType(file) {
   const type = (file.type || '').toLowerCase()
   if (PHOTO_CONTENT_TYPES.includes(type)) return type
   if (type === 'image/heif') return 'image/heic'

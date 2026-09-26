@@ -15,9 +15,9 @@ import LocationPicker from '../components/LocationPicker.jsx'
 import PhotoPicker from '../components/PhotoPicker.jsx'
 import TurnstileWidget from '../components/TurnstileWidget.jsx'
 
-export const DESCRIPTION_MIN = 10
-export const DESCRIPTION_MAX = 2000
-export const ADDRESS_MAX = 300
+const DESCRIPTION_MIN = 10
+const DESCRIPTION_MAX = 2000
+const ADDRESS_MAX = 300
 
 /** Fields in page order; the first invalid one gets focus. */
 const FIELD_ORDER = ['location', 'description', 'address', 'photos', 'captcha']
