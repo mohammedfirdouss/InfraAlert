@@ -123,6 +123,10 @@
   font-family: 'Overpass', system-ui, sans-serif;
   background: #e7e2d6;
 }
+/* Mute the street tiles slightly so the yellow pin and UI read first. */
+.leaflet-tile-pane {
+  filter: saturate(0.7) contrast(1.03);
+}
 .leaflet-bar {
   border: 2px solid #14161a !important;
   border-radius: 6px !important;
