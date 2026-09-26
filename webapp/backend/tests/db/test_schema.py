@@ -23,8 +23,7 @@ from infraalert.db.models import (
     StaffRole,
     Team,
 )
-
-from .conftest import alembic_config, fresh_database
+from tests.conftest import alembic_config, fresh_database
 
 
 def point(lon: float, lat: float) -> str:
