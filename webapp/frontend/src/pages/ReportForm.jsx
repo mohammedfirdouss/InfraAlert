@@ -8,7 +8,7 @@
  */
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AlertTriangle, Loader2, Phone, Send } from 'lucide-react'
+import { AlertCircle, AlertTriangle, ArrowRight, Loader2, MapPin, Phone } from 'lucide-react'
 import { ApiError, submitReport } from '../api/client.js'
 import { config } from '../config.js'
 import LocationPicker from '../components/LocationPicker.jsx'
@@ -71,18 +71,45 @@ function fieldErrorsFrom422(detail) {
   return errs
 }
 
+const ICON = { size: 18, strokeWidth: 2.25, 'aria-hidden': true }
+
 function FieldError({ id, message }) {
   if (!message) return null
   return (
-    <p id={id} className="mt-1 text-sm text-danger-600">
+    <p id={id} className="field-error animate-rise-in">
+      <AlertCircle size={15} strokeWidth={2.5} className="shrink-0" aria-hidden="true" />
       {message}
     </p>
   )
 }
 
-function inputClass(hasError) {
-  return `input ${hasError ? 'border-danger-500 focus:border-danger-500 focus:ring-danger-500' : ''}`
+/** "01  WHERE": the field-report section header. */
+function SectionHeading({ no, id, children }) {
+  return (
+    <h2 id={id} className="mb-5 flex items-center gap-3">
+      <span className="section-no">{no}</span>
+      <span className="section-title">{children}</span>
+      <span className="h-px flex-1 bg-concrete-200" aria-hidden="true" />
+    </h2>
+  )
 }
+
+/** Small marker after a field label. */
+function Marker({ children }) {
+  return (
+    <span className="ml-2 align-middle font-mono text-[11px] font-semibold uppercase tracking-sign text-asphalt-400">
+      {children}
+    </span>
+  )
+}
+
+const QUESTION = 'mb-3 block text-lg font-extrabold leading-snug text-ink'
+
+const STEPS = [
+  ['Pin it', 'Tap the map or use your location'],
+  ['Describe it', 'In your own words'],
+  ['We route it', 'To the right repair crew'],
+]
 
 export default function ReportForm() {
   const navigate = useNavigate()
@@ -245,46 +272,85 @@ export default function ReportForm() {
   const submitDisabled = submitting || photosBusy
 
   return (
-    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+    <div className="mx-auto max-w-2xl px-4 pb-8 pt-8 sm:px-6 sm:pt-12">
+      {/* Page intro */}
+      <header className="animate-rise-in">
+        <p className="tag">Citizen report · about 1 minute</p>
+        <h1 className="mt-4 text-3xl font-black leading-[1.05] tracking-tight text-ink sm:text-4xl">
+          Report a problem on your street
+        </h1>
+        <p className="mt-3 max-w-lg text-base text-asphalt-600">
+          Tell us where it is and what&apos;s wrong. You don&apos;t need to give your name.
+        </p>
+        <ol className="mt-6 grid grid-cols-3 gap-2" aria-label="How it works">
+          {STEPS.map(([title, detail], i) => (
+            <li
+              key={title}
+              className="flex flex-col gap-1.5 rounded-md border border-concrete-300 bg-white/70 px-3 py-2.5 sm:flex-row sm:items-start sm:gap-2.5"
+            >
+              <span
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-ink font-mono text-xs font-semibold text-signal-400"
+                aria-hidden="true"
+              >
+                {i + 1}
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-extrabold leading-tight text-ink">{title}</span>
+                <span className="mt-0.5 hidden text-xs leading-snug text-asphalt-500 sm:block">
+                  {detail}
+                </span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      </header>
+
       {/* Emergency notice (ADR 0005) */}
       <section
         aria-labelledby="emergency-heading"
-        className="mb-6 rounded-xl border-2 border-danger-500 bg-danger-50 p-4"
+        className="mt-8 flex overflow-hidden rounded-xl border-2 border-ink bg-hazard-500 text-ink shadow-plate"
       >
-        <div className="flex items-start gap-3">
-          <AlertTriangle size={22} className="mt-0.5 shrink-0 text-danger-600" aria-hidden="true" />
-          <div className="space-y-2">
-            <h2 id="emergency-heading" className="text-base font-bold text-danger-600">
+        <div className="hazard-edge w-3 shrink-0 border-r-2 border-ink sm:w-4" aria-hidden="true" />
+        <div className="flex flex-1 flex-col gap-4 p-4 sm:flex-row sm:items-center sm:gap-5 sm:p-5">
+          <div className="flex-1">
+            <h2
+              id="emergency-heading"
+              className="flex items-center gap-2 text-lg font-black leading-tight"
+            >
+              <AlertTriangle size={20} strokeWidth={2.5} className="shrink-0" aria-hidden="true" />
               Is someone in danger?
             </h2>
-            <p className="text-sm text-gray-800">
+            <p className="mt-1.5 text-sm font-semibold leading-snug">
               For a gas leak, live or fallen wires, fire, or anyone injured, call emergency
               services now. This form is not monitored in real time.
             </p>
-            <a
-              href={`tel:${config.emergencyNumber}`}
-              className="btn-danger w-full sm:w-auto text-base py-2.5"
-            >
-              <Phone size={18} aria-hidden="true" />
-              Call {config.emergencyNumber}
-            </a>
           </div>
+          <a
+            href={`tel:${config.emergencyNumber}`}
+            className="btn-secondary min-h-[56px] w-full shrink-0 gap-3 px-5 shadow-plate sm:w-auto"
+          >
+            <Phone size={20} strokeWidth={2.5} aria-hidden="true" />
+            <span className="text-sm font-extrabold uppercase tracking-sign">Call</span>{' '}
+            <span className="font-mono text-2xl font-bold tracking-tight">
+              {config.emergencyNumber}
+            </span>
+          </a>
         </div>
       </section>
 
-      {/* Header */}
-      <div className="mb-4">
-        <h1 className="text-2xl font-bold text-gray-900">Report a problem</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Tell us where it is and what's wrong. You don't need to give your name.
-        </p>
-      </div>
-
-      <form onSubmit={handleSubmit} noValidate className="card p-4 sm:p-6 space-y-6">
-        {/* Where */}
-        <div>
-          <span id="location-label" className="label">
-            Where is the problem? <span className="text-danger-600">*</span>
+      <form
+        onSubmit={handleSubmit}
+        noValidate
+        className="card mt-8 divide-y divide-concrete-200"
+      >
+        {/* 01 Where */}
+        <section aria-labelledby="section-where" className="p-5 sm:p-7">
+          <SectionHeading no="01" id="section-where">
+            Where
+          </SectionHeading>
+          <span id="location-label" className={QUESTION}>
+            Where is the problem?
+            <Marker>Required</Marker>
           </span>
           <div
             ref={fieldRefs.location}
@@ -292,7 +358,7 @@ export default function ReportForm() {
             role="group"
             aria-labelledby="location-label"
             {...describedBy('location')}
-            className={`rounded-lg ${errors.location ? 'ring-2 ring-danger-500' : ''}`}
+            className={`rounded-xl ${errors.location ? 'ring-2 ring-hazard-500 ring-offset-4' : ''}`}
           >
             <LocationPicker
               value={location}
@@ -301,69 +367,94 @@ export default function ReportForm() {
             />
           </div>
           <FieldError id="location-error" message={errors.location} />
-        </div>
+        </section>
 
-        {/* What's wrong */}
-        <div>
-          <label htmlFor="description" className="label">
-            What's wrong? <span className="text-danger-600">*</span>
-          </label>
-          <textarea
-            ref={fieldRefs.description}
-            id="description"
-            name="description"
-            value={description}
-            onChange={(e) => {
-              setDescription(e.target.value)
-              clearError('description')
-            }}
-            rows={5}
-            placeholder="For example: a deep pothole in the left lane, about a metre wide. Cars are swerving around it."
-            className={`${inputClass(!!errors.description)} resize-y text-base sm:text-sm`}
-            {...describedBy('description', 'description-count')}
-          />
-          <div className="flex items-start justify-between gap-3">
-            <FieldError id="description-error" message={errors.description} />
-            <span
-              id="description-count"
-              className={`mt-1 ml-auto shrink-0 text-xs ${
-                trimmedLength > DESCRIPTION_MAX ? 'text-danger-600 font-semibold' : 'text-gray-500'
-              }`}
-            >
-              {trimmedLength}/{DESCRIPTION_MAX} characters
-            </span>
+        {/* 02 What's wrong */}
+        <section aria-labelledby="section-what" className="p-5 sm:p-7">
+          <SectionHeading no="02" id="section-what">
+            What&apos;s wrong
+          </SectionHeading>
+          <div>
+            <label htmlFor="description" className={QUESTION}>
+              What&apos;s wrong?
+              <Marker>Required</Marker>
+            </label>
+            <textarea
+              ref={fieldRefs.description}
+              id="description"
+              name="description"
+              value={description}
+              onChange={(e) => {
+                setDescription(e.target.value)
+                clearError('description')
+              }}
+              rows={5}
+              placeholder="For example: a deep pothole in the left lane, about a metre wide. Cars are swerving around it."
+              className="input min-h-[8rem] resize-y leading-relaxed"
+              {...describedBy('description', 'description-hint', 'description-count')}
+            />
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p id="description-hint" className="hint">
+                  Say what you see, roughly how big it is, and if it&apos;s getting worse.
+                </p>
+                <FieldError id="description-error" message={errors.description} />
+              </div>
+              <span
+                id="description-count"
+                className={`mt-1.5 shrink-0 font-mono text-xs tabular-nums ${
+                  trimmedLength > DESCRIPTION_MAX ? 'font-bold text-hazard-700' : 'text-asphalt-500'
+                }`}
+              >
+                <span aria-hidden="true">
+                  {trimmedLength} / {DESCRIPTION_MAX}
+                </span>
+                <span className="sr-only">
+                  {trimmedLength} of {DESCRIPTION_MAX} characters
+                </span>
+              </span>
+            </div>
           </div>
-        </div>
 
-        {/* Address / landmark */}
-        <div>
-          <label htmlFor="address" className="label">
-            Address or nearby landmark{' '}
-            <span className="font-normal text-gray-500">(optional)</span>
-          </label>
-          <input
-            ref={fieldRefs.address}
-            type="text"
-            id="address"
-            name="address"
-            value={address}
-            onChange={handleAddressTyped}
-            maxLength={ADDRESS_MAX}
-            placeholder="e.g. outside the market on Moi Avenue"
-            autoComplete="off"
-            className={`${inputClass(!!errors.address)} text-base sm:text-sm`}
-            {...describedBy('address', 'address-hint')}
-          />
-          <p id="address-hint" className="mt-1 text-xs text-gray-500">
-            Filled in from the map when possible. You can change it.
-          </p>
-          <FieldError id="address-error" message={errors.address} />
-        </div>
+          <div className="mt-7">
+            <label htmlFor="address" className="label">
+              Address or nearby landmark
+              <Marker>Optional</Marker>
+            </label>
+            <div className="relative">
+              <MapPin
+                {...ICON}
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-asphalt-400"
+              />
+              <input
+                ref={fieldRefs.address}
+                type="text"
+                id="address"
+                name="address"
+                value={address}
+                onChange={handleAddressTyped}
+                maxLength={ADDRESS_MAX}
+                placeholder="e.g. outside the market on Moi Avenue"
+                autoComplete="off"
+                className="input pl-10"
+                {...describedBy('address', 'address-hint')}
+              />
+            </div>
+            <p id="address-hint" className="hint">
+              Filled in from the map when possible. You can change it.
+            </p>
+            <FieldError id="address-error" message={errors.address} />
+          </div>
+        </section>
 
-        {/* Photos */}
-        <div>
-          <span id="photos-label" className="label">
-            Photos <span className="font-normal text-gray-500">(optional)</span>
+        {/* 03 Photos */}
+        <section aria-labelledby="section-photos" className="p-5 sm:p-7">
+          <SectionHeading no="03" id="section-photos">
+            Photos
+          </SectionHeading>
+          <span id="photos-label" className={QUESTION}>
+            Photos of the problem
+            <Marker>Optional</Marker>
           </span>
           <div
             ref={fieldRefs.photos}
@@ -371,6 +462,7 @@ export default function ReportForm() {
             role="group"
             aria-labelledby="photos-label"
             {...describedBy('photos')}
+            className="rounded-lg"
           >
             <PhotoPicker
               value={photos}
@@ -383,59 +475,75 @@ export default function ReportForm() {
             />
           </div>
           <FieldError id="photos-error" message={errors.photos} />
-        </div>
+        </section>
 
-        {/* Security check */}
-        <div>
-          <div
-            ref={fieldRefs.captcha}
-            tabIndex={-1}
-            role="group"
-            aria-label="Security check"
-            {...describedBy('captcha')}
-          >
-            <TurnstileWidget ref={turnstileRef} onToken={handleCaptchaToken} />
-          </div>
-          <FieldError id="captcha-error" message={errors.captcha} />
-        </div>
+        {/* 04 Send */}
+        <section aria-labelledby="section-send" className="p-5 sm:p-7">
+          <SectionHeading no="04" id="section-send">
+            Send
+          </SectionHeading>
 
-        {/* Form-level status, announced to screen readers */}
-        <div aria-live="assertive" role="alert">
-          {formError && (
-            <div className="rounded-lg border border-danger-500 bg-danger-50 px-4 py-3 text-sm text-danger-600">
-              {formError}
+          <div>
+            <p id="captcha-label" className="label">
+              Security check
+            </p>
+            <div
+              ref={fieldRefs.captcha}
+              tabIndex={-1}
+              role="group"
+              aria-labelledby="captcha-label"
+              {...describedBy('captcha', 'captcha-hint')}
+              className="rounded-lg"
+            >
+              <TurnstileWidget ref={turnstileRef} onToken={handleCaptchaToken} />
             </div>
-          )}
-        </div>
+            <p id="captcha-hint" className="hint">
+              Keeps automated spam out. It usually completes on its own.
+            </p>
+            <FieldError id="captcha-error" message={errors.captcha} />
+          </div>
 
-        {/* Submit */}
-        <div>
-          <button
-            type="submit"
-            disabled={submitDisabled}
-            aria-describedby="submit-hint"
-            className="btn-primary w-full py-3 text-base"
-          >
-            {submitting ? (
-              <>
-                <Loader2 size={18} className="animate-spin" aria-hidden="true" />
-                Sending report…
-              </>
-            ) : (
-              <>
-                <Send size={18} aria-hidden="true" />
-                Send report
-              </>
-            )}
-          </button>
-          <p id="submit-hint" aria-live="polite" className="mt-2 text-xs text-center text-gray-500">
-            {photosBusy
-              ? 'Waiting for your photos to finish uploading…'
-              : !captchaToken
-                ? 'The security check must finish before you can send the report.'
-                : ''}
-          </p>
-        </div>
+          <div className="mt-7">
+            <button
+              type="submit"
+              disabled={submitDisabled}
+              aria-describedby="submit-hint"
+              className="btn-primary min-h-[56px] w-full gap-2.5 text-lg font-extrabold"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 {...ICON} className="animate-spin" />
+                  Sending report…
+                </>
+              ) : (
+                <>
+                  Send report
+                  <ArrowRight size={20} strokeWidth={2.5} aria-hidden="true" />
+                </>
+              )}
+            </button>
+            <p id="submit-hint" aria-live="polite" className="hint text-center empty:hidden">
+              {photosBusy
+                ? 'Waiting for your photos to finish uploading…'
+                : !captchaToken
+                  ? 'The security check must finish before you can send the report.'
+                  : ''}
+            </p>
+
+            {/* Form-level status, announced to screen readers */}
+            <div aria-live="assertive" role="alert">
+              {formError && (
+                <div className="mt-4 flex animate-rise-in items-start gap-3 rounded-md border border-l-4 border-hazard-100 border-l-hazard-500 bg-hazard-50 px-4 py-3 text-sm font-semibold leading-snug text-ink">
+                  <AlertTriangle
+                    {...ICON}
+                    className="mt-px shrink-0 text-hazard-600"
+                  />
+                  <span>{formError}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
       </form>
     </div>
   )
