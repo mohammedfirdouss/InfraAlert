@@ -162,3 +162,11 @@ def test_import_osm_failure_changes_nothing(
     assert "import failed, nothing changed" in capsys.readouterr().out
     with sessions() as session:
         assert session.scalar(select(func.count()).select_from(SensitivePlace)) == 0
+
+
+def test_retention_runs_once_and_reports_counts(
+    sessions: sessionmaker[Session], capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert cli.main(["retention"]) == 0
+    out = capsys.readouterr().out
+    assert "submitter keys cleared:" in out and "contacts deleted:" in out
