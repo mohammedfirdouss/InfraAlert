@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from infraalert.db.models import IssueType
 from infraalert.deps import Deps, get_deps, get_session
+from infraalert.notify.outbox import kick_delivery
 from infraalert.staff import dispatch, views
 from infraalert.staff.auth import Dispatcher
 
@@ -21,15 +22,20 @@ SessionDep = Annotated[Session, Depends(get_session)]
 DepsDep = Annotated[Deps, Depends(get_deps)]
 
 
-def _act(session: Session, action: Callable[[], object]) -> object:
-    """Run one dispatch action as a single transaction."""
+def _act(session: Session, action: Callable[[], object], deps: Deps | None = None) -> object:
+    """
+    Run one dispatch action as a single transaction. Pass `deps` for actions that may
+    queue citizen updates, so development (no scheduler) delivers them right away.
+    """
     try:
         result = action()
         session.commit()
-        return result
     except dispatch.DispatchError as exc:
         session.rollback()
         raise HTTPException(exc.status, detail=exc.code) from exc
+    if deps is not None:
+        kick_delivery(deps)  # citizen updates: no-op unless in development
+    return result
 
 
 # Reading
@@ -105,9 +111,13 @@ def post_triage(
 
 @router.post("/incidents/{incident_id}/assign", status_code=204)
 def post_assign(
-    incident_id: uuid.UUID, body: AssignRequest, session: SessionDep, staff: Dispatcher
+    incident_id: uuid.UUID,
+    body: AssignRequest,
+    session: SessionDep,
+    deps: DepsDep,
+    staff: Dispatcher,
 ) -> None:
-    _act(session, lambda: dispatch.assign(session, staff, incident_id, body.team_id))
+    _act(session, lambda: dispatch.assign(session, staff, incident_id, body.team_id), deps)
 
 
 @router.post("/incidents/{incident_id}/on-site", status_code=204)
@@ -117,16 +127,24 @@ def post_on_site(incident_id: uuid.UUID, session: SessionDep, staff: Dispatcher)
 
 @router.post("/incidents/{incident_id}/resolve", status_code=204)
 def post_resolve(
-    incident_id: uuid.UUID, body: ResolveRequest, session: SessionDep, staff: Dispatcher
+    incident_id: uuid.UUID,
+    body: ResolveRequest,
+    session: SessionDep,
+    deps: DepsDep,
+    staff: Dispatcher,
 ) -> None:
-    _act(session, lambda: dispatch.resolve(session, staff, incident_id, body.note))
+    _act(session, lambda: dispatch.resolve(session, staff, incident_id, body.note), deps)
 
 
 @router.post("/incidents/{incident_id}/close", status_code=204)
 def post_close(
-    incident_id: uuid.UUID, body: CloseRequest, session: SessionDep, staff: Dispatcher
+    incident_id: uuid.UUID,
+    body: CloseRequest,
+    session: SessionDep,
+    deps: DepsDep,
+    staff: Dispatcher,
 ) -> None:
-    _act(session, lambda: dispatch.close_invalid(session, staff, incident_id, body.reason))
+    _act(session, lambda: dispatch.close_invalid(session, staff, incident_id, body.reason), deps)
 
 
 @router.post("/incidents/{incident_id}/merge", status_code=204)

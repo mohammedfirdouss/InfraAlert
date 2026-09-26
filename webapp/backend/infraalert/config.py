@@ -47,12 +47,27 @@ class Settings:
     # Restrict staff sign-in to one Identity Platform provider, e.g. "oidc.city-sso".
     staff_sign_in_provider: str | None = None
 
+    # Citizen email updates (ADR 0007). "console" (development) writes each email
+    # to LOCAL_OUTBOX_DIR instead of sending it; "smtp" sends via any SMTP provider.
+    email_backend: Literal["smtp", "console"] = "console"
+    email_from: str = "InfraAlert <no-reply@infraalert.local>"
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    local_outbox_dir: Path = Path("var/outbox")
+
+    # The city's bounding box for the OpenStreetMap import: (south, west, north, east).
+    city_bbox: tuple[float, float, float, float] = (-1.45, 36.65, -1.16, 37.10)
+    overpass_url: str = "https://overpass-api.de/api/interpreter"
+
     @classmethod
     def from_env(cls) -> Settings:
         storage = _choice("STORAGE_BACKEND", "local", ("gcs", "local"))
         tasks = _choice("TASKS_BACKEND", "inline", ("inline", "cloud_tasks"))
         extractor = _choice("EXTRACTOR_BACKEND", "disabled", ("vertex", "disabled"))
         staff_auth = _choice("STAFF_AUTH_BACKEND", "dev", ("identity_platform", "dev"))
+        email = _choice("EMAIL_BACKEND", "console", ("smtp", "console"))
         cloud = tasks == "cloud_tasks"
         vertex = extractor == "vertex"
         if staff_auth == "dev" and cloud:
@@ -78,6 +93,15 @@ class Settings:
             gemini_model=_require("GEMINI_MODEL") if vertex else None,
             staff_auth_backend=cast(Literal["identity_platform", "dev"], staff_auth),
             staff_sign_in_provider=os.getenv("STAFF_SIGN_IN_PROVIDER") or None,
+            email_backend=cast(Literal["smtp", "console"], email),
+            email_from=os.getenv("EMAIL_FROM", "InfraAlert <no-reply@infraalert.local>"),
+            smtp_host=_require("SMTP_HOST") if email == "smtp" else None,
+            smtp_port=int(os.getenv("SMTP_PORT", "587")),
+            smtp_username=os.getenv("SMTP_USERNAME") or None,
+            smtp_password=os.getenv("SMTP_PASSWORD") or None,
+            local_outbox_dir=Path(os.getenv("LOCAL_OUTBOX_DIR", "var/outbox")),
+            city_bbox=_bbox(os.getenv("CITY_BBOX", "-1.45,36.65,-1.16,37.10")),
+            overpass_url=os.getenv("OVERPASS_URL", "https://overpass-api.de/api/interpreter"),
         )
 
 
@@ -86,3 +110,13 @@ def _choice(name: str, default: str, allowed: tuple[str, ...]) -> str:
     if value not in allowed:
         raise RuntimeError(f"{name} must be one of {allowed}, got {value!r}")
     return value
+
+
+def _bbox(raw: str) -> tuple[float, float, float, float]:
+    parts = [float(p) for p in raw.split(",")]
+    if len(parts) != 4:
+        raise RuntimeError("CITY_BBOX must be 'south,west,north,east'")
+    south, west, north, east = parts
+    if not (south < north and west < east):
+        raise RuntimeError("CITY_BBOX must be 'south,west,north,east' with south<north, west<east")
+    return south, west, north, east

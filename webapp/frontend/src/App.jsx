@@ -4,6 +4,8 @@ import { ArrowRight } from 'lucide-react'
 import { LogoMark } from './components/Logo.jsx'
 import ReportForm from './pages/ReportForm.jsx'
 import ReportStatusPage from './pages/ReportStatusPage.jsx'
+import Unsubscribe from './pages/Unsubscribe.jsx'
+import VerifyUpdates from './pages/VerifyUpdates.jsx'
 
 // Loaded on demand: citizens never download the staff app or its sign-in SDK.
 const StaffApp = lazy(() => import('./staff/StaffApp.jsx'))
@@ -61,6 +63,8 @@ function CitizenApp() {
         <Routes>
           <Route path="/" element={<ReportForm />} />
           <Route path="/reports/:id" element={<ReportStatusPage />} />
+          <Route path="/reports/:id/verify" element={<VerifyUpdates />} />
+          <Route path="/unsubscribe" element={<Unsubscribe />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>

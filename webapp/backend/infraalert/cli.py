@@ -3,6 +3,8 @@ Operator commands. Uses DATABASE_URL.
 
     python -m infraalert.cli create-admin --email ada@city.example --name "Ada Lovelace"
     python -m infraalert.cli seed-dev        # local development only
+    python -m infraalert.cli import-osm      # refresh sensitive places from OpenStreetMap
+                                             # (CITY_BBOX, OVERPASS_URL)
 """
 
 from __future__ import annotations
@@ -15,8 +17,10 @@ from collections.abc import Sequence
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from infraalert.config import Settings, _bbox
 from infraalert.db.models import IssueType, PlaceSource, SensitivePlace, Staff, StaffRole, Team
 from infraalert.db.session import make_engine, make_sessionmaker
+from infraalert.places import osm
 
 DEV_STAFF = [
     ("dispatcher@dev.local", "Dev Dispatcher", StaffRole.DISPATCHER),
@@ -100,11 +104,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     admin.add_argument("--email", required=True)
     admin.add_argument("--name", required=True)
     commands.add_parser("seed-dev", help="add development staff, teams and places")
+    commands.add_parser("import-osm", help="refresh sensitive places from OpenStreetMap")
     args = parser.parse_args(argv)
 
     if args.command == "seed-dev" and (os.getenv("STAFF_AUTH_BACKEND") or "dev") != "dev":
         print("seed-dev is for local development only (STAFF_AUTH_BACKEND must be dev)")
         return 1
+
+    if args.command == "import-osm":
+        return _import_osm()
 
     engine = make_engine()
     try:
@@ -117,6 +125,29 @@ def main(argv: Sequence[str] | None = None) -> int:
     finally:
         engine.dispose()
     print("\n".join(lines))
+    return 0
+
+
+def _import_osm() -> int:
+    # Only the import's settings: the CLI must not need the web app's secrets.
+    raw_bbox = os.getenv("CITY_BBOX")
+    bbox = _bbox(raw_bbox) if raw_bbox else Settings.city_bbox
+    overpass = osm.OverpassClient(os.getenv("OVERPASS_URL") or Settings.overpass_url)
+    engine = make_engine()
+    try:
+        with make_sessionmaker(engine)() as session:
+            result = osm.import_osm(session, overpass, bbox)
+    except (osm.OverpassError, osm.ImportRefused) as exc:
+        print(f"import failed, nothing changed: {exc}")
+        return 1
+    finally:
+        engine.dispose()
+    print(
+        f"fetched {result.fetched}: {result.inserted} inserted, {result.updated} updated, "
+        f"{result.unchanged} unchanged, {result.deleted} deleted"
+    )
+    if result.deletions_skipped:
+        print("warning: the result looked incomplete, so vanished places were kept")
     return 0
 
 

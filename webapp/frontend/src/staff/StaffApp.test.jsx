@@ -19,6 +19,7 @@ vi.mock('./pages/Incident.jsx', () => ({
 }))
 vi.mock('./pages/Teams.jsx', () => ({ default: () => <h1>Teams page</h1> }))
 vi.mock('./pages/Members.jsx', () => ({ default: () => <h1>Members page</h1> }))
+vi.mock('./pages/Places.jsx', () => ({ default: () => <h1>Places page</h1> }))
 
 import StaffApp from './StaffApp.jsx'
 import { DEV_TOKEN_KEY } from './auth.jsx'
@@ -111,6 +112,21 @@ describe('guards', () => {
     expect(await screen.findByRole('heading', { name: 'Members page' })).toBeInTheDocument()
   })
 
+  it('keeps Places for admins only', async () => {
+    signedInAs('supervisor')
+    const { unmount } = renderAt('/staff/places')
+    expect(await screen.findByText("You don't have access to this page")).toBeInTheDocument()
+    expect(screen.queryByText('Places page')).not.toBeInTheDocument()
+    expect(within(sidebarNav()).queryByRole('link', { name: 'Places' })).not.toBeInTheDocument()
+    unmount()
+
+    signedInAs('admin')
+    renderAt('/staff/places')
+    expect(await screen.findByRole('heading', { name: 'Places page' })).toBeInTheDocument()
+    expect(document.title).toBe('Places · InfraAlert staff')
+    expect(within(sidebarNav()).getByRole('link', { name: 'Places' })).toHaveAttribute('aria-current', 'page')
+  })
+
   it('signs out from the sidebar', async () => {
     signedInAs('dispatcher')
     renderAt('/staff')
@@ -125,7 +141,7 @@ describe('layout', () => {
   it.each([
     ['dispatcher', ['Queue']],
     ['supervisor', ['Queue', 'Teams']],
-    ['admin', ['Queue', 'Teams', 'Staff']],
+    ['admin', ['Queue', 'Teams', 'Staff', 'Places']],
   ])('shows a %s the right nav items', async (role, labels) => {
     signedInAs(role)
     renderAt('/staff')
@@ -178,7 +194,7 @@ describe('layout', () => {
     expect(menuButton).toHaveAttribute('aria-expanded', 'true')
     const close = within(dialog).getByRole('button', { name: 'Close menu' })
     expect(close).toHaveFocus()
-    expect(within(dialog).getAllByRole('link').map((l) => l.textContent)).toEqual(['Queue', 'Teams', 'Staff'])
+    expect(within(dialog).getAllByRole('link').map((l) => l.textContent)).toEqual(['Queue', 'Teams', 'Staff', 'Places'])
 
     // Shift+Tab from the first control wraps to the last; Tab from the last wraps back.
     await user.tab({ shift: true })

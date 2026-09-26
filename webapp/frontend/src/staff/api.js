@@ -143,3 +143,23 @@ export const inviteMember = (member) => post('/api/staff/members', member)
 /** Rejects 409 cannot_change_own_access or last_admin. */
 export const updateMember = (id, changes) =>
   patch(`/api/staff/members/${encodeURIComponent(id)}`, changes)
+
+// Sensitive places (admin): OpenStreetMap imports plus manual overrides (ADR 0004)
+
+/**
+ * @typedef {{
+ *   id: string, name: string | null, category: string,
+ *   geometry: { type: 'Point' | 'LineString' | 'Polygon' | 'MultiLineString', coordinates: unknown },
+ *   source: 'osm' | 'manual', osm_id: string | null, enabled: boolean,
+ * }} Place  geometry is GeoJSON ([lng, lat] order)
+ * @typedef {{ id: string, weight: number }} PlaceCategory  the priority weight (formula v1)
+ */
+
+/** @returns {Promise<{ places: Place[], categories: PlaceCategory[], last_import_at: string | null }>} */
+export const getPlaces = () => request('/api/staff/places')
+/** Manual places are points. @param {{ name: string, category: string, location: LatLng }} place */
+export const createPlace = (place) => post('/api/staff/places', place)
+/** Admins can disable OSM places (kept disabled across re-imports) or edit manual ones. */
+export const updatePlace = (id, changes) =>
+  patch(`/api/staff/places/${encodeURIComponent(id)}`, changes)
+

@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from infraalert.citizen.status import ReportStatus, report_status
 from infraalert.db.models import Incident, IncidentStatus, IssueType, Report, ReportPhoto
+from infraalert.notify.subscriptions import masked_update_email
 from infraalert.storage import CONTENT_TYPE_EXTENSIONS
 
 # Guards against a merge cycle; real chains are one or two hops.
@@ -36,6 +37,7 @@ class ReportView:
     lng: float
     photo_count: int
     submitted_at: datetime
+    updates_email_masked: str | None
 
 
 def create_report(session: Session, new: NewReport, submitter_key: str | None) -> uuid.UUID:
@@ -78,6 +80,7 @@ def get_report_view(session: Session, report_id: uuid.UUID) -> ReportView | None
         lng=lng,
         photo_count=photo_count or 0,
         submitted_at=report.submitted_at,
+        updates_email_masked=masked_update_email(session, report.contact_id),
     )
 
 

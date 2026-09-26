@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import urllib.parse
 from collections.abc import Iterator
 
 import pytest
@@ -8,6 +9,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from infraalert import cli
 from infraalert.db.models import IssueType, SensitivePlace, Staff, StaffRole, Team
+from infraalert.places import osm
 
 
 class _Undisposable:
@@ -115,3 +117,48 @@ def test_seed_dev_refuses_outside_development(
     monkeypatch.setenv("STAFF_AUTH_BACKEND", "identity_platform")
     assert cli.main(["seed-dev"]) == 1
     assert "local development only" in capsys.readouterr().out
+
+
+def test_import_osm(
+    sessions: sessionmaker[Session],
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from tests.places.conftest import FakeOverpass
+
+    fake = FakeOverpass()
+    urls: list[str] = []
+
+    def client(url: str) -> osm.OverpassClient:
+        urls.append(url)
+        return fake.client()
+
+    monkeypatch.setattr(cli.osm, "OverpassClient", client)
+    monkeypatch.setenv("CITY_BBOX", "-1.3,36.7,-1.2,36.9")
+    monkeypatch.delenv("OVERPASS_URL", raising=False)
+
+    assert cli.main(["import-osm"]) == 0
+    assert "fetched 6: 6 inserted, 0 updated, 0 unchanged, 0 deleted" in capsys.readouterr().out
+    assert urls == ["https://overpass-api.de/api/interpreter"]
+    [query] = urllib.parse.parse_qs(fake.requests[0].content.decode())["data"]
+    assert "[bbox:-1.3,36.7,-1.2,36.9]" in query
+    assert cli.main(["import-osm"]) == 0
+    assert "0 inserted, 0 updated, 6 unchanged" in capsys.readouterr().out
+    with sessions() as session:
+        assert session.scalar(select(func.count()).select_from(SensitivePlace)) == 6
+
+
+def test_import_osm_failure_changes_nothing(
+    sessions: sessionmaker[Session],
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from tests.places.conftest import FakeOverpass
+
+    fake = FakeOverpass(status=504)
+    monkeypatch.setattr(cli.osm, "OverpassClient", lambda _url: fake.client())
+
+    assert cli.main(["import-osm"]) == 1
+    assert "import failed, nothing changed" in capsys.readouterr().out
+    with sessions() as session:
+        assert session.scalar(select(func.count()).select_from(SensitivePlace)) == 0

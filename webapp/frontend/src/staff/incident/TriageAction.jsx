@@ -45,8 +45,8 @@ export default function TriageAction({ status, currentType, suggestedType, prima
                 <Icon size={16} strokeWidth={2.25} aria-hidden="true" />
                 <span className="flex-1">{label}</span>
                 {value === suggestedType && (
-                  <span className="rounded border border-dashed border-asphalt-400 px-1 text-[10px] font-bold uppercase tracking-sign text-asphalt-500">
-                    Suggested by the system
+                  <span className="shrink-0 rounded border border-dashed border-asphalt-400 px-1 text-[10px] font-bold uppercase tracking-sign text-asphalt-500">
+                    Suggested<span className="sr-only"> by the system</span>
                   </span>
                 )}
               </label>

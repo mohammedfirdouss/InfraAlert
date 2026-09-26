@@ -67,6 +67,8 @@ class ReportResponse(BaseModel):
     location: Location
     photo_count: int
     submitted_at: datetime
+    # Set once someone confirmed email updates, e.g. "a•••@gmail.com" (infraalert.notify).
+    updates_email_masked: str | None
 
 
 class UploadRequest(BaseModel):
@@ -144,4 +146,5 @@ def get_report(report_id: uuid.UUID, session: SessionDep) -> ReportResponse:
         location=Location(lat=view.lat, lng=view.lng),
         photo_count=view.photo_count,
         submitted_at=view.submitted_at,
+        updates_email_masked=view.updates_email_masked,
     )

@@ -1,4 +1,4 @@
-import { formatDistance } from '../ui.jsx'
+import { formatDistance, formatScore } from '../ui.jsx'
 
 const COMPONENTS = [
   { key: 'hazard', label: 'Hazard', swatch: 'bg-hazard-500' },
@@ -45,7 +45,7 @@ export default function PriorityPanel({ incident }) {
       ) : (
         <>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="font-mono text-2xl font-semibold">{score != null ? fmt(score) : '—'}</span>
+            <span className="font-mono text-2xl font-semibold">{score != null ? formatScore(score) : '—'}</span>
             <span className="text-xs text-asphalt-500">out of 1.00</span>
           </div>
 

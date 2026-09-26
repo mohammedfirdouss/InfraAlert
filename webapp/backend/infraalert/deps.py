@@ -11,6 +11,7 @@ from starlette.requests import Request
 from infraalert.captcha import CaptchaVerifier, TurnstileVerifier
 from infraalert.config import Settings
 from infraalert.db.session import make_engine, make_sessionmaker
+from infraalert.notify.mailer import ConsoleMailer, Mailer, SmtpMailer
 from infraalert.processing.auth import GoogleOidcVerifier, TaskCallerVerifier
 from infraalert.processing.extraction import DisabledExtractor, Extractor, VertexExtractor
 from infraalert.processing.worker import Processor
@@ -34,6 +35,8 @@ class Deps:
     # Set only when tasks arrive over HTTP (TASKS_BACKEND=cloud_tasks).
     task_auth: TaskCallerVerifier | None = None
     staff_auth: StaffTokenVerifier | None = None
+    # Built by the notify agent's wiring; None disables citizen email updates.
+    mailer: Mailer | None = None
 
 
 def build_deps(settings: Settings) -> Deps:
@@ -75,6 +78,19 @@ def build_deps(settings: Settings) -> Deps:
     else:
         staff_auth = DevVerifier()
 
+    mailer: Mailer
+    if settings.email_backend == "smtp":
+        assert settings.smtp_host
+        mailer = SmtpMailer(
+            settings.smtp_host,
+            settings.smtp_port,
+            settings.email_from,
+            settings.smtp_username,
+            settings.smtp_password,
+        )
+    else:
+        mailer = ConsoleMailer(settings.local_outbox_dir, settings.email_from)
+
     return Deps(
         settings=settings,
         sessions=sessions,
@@ -84,6 +100,7 @@ def build_deps(settings: Settings) -> Deps:
         processor=processor,
         task_auth=task_auth,
         staff_auth=staff_auth,
+        mailer=mailer,
     )
 
 

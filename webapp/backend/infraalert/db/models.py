@@ -25,6 +25,7 @@ from sqlalchemy import (
     ForeignKey,
     Identity,
     Index,
+    Integer,
     MetaData,
     Text,
     UniqueConstraint,
@@ -93,6 +94,21 @@ class PlaceSource(enum.StrEnum):
     MANUAL = "manual"
 
 
+class NotificationEvent(enum.StrEnum):
+    """What a citizen with a verified contact is told about (ADR 0007)."""
+
+    ASSIGNED = "assigned"
+    RESOLVED = "resolved"
+    CLOSED = "closed"  # closed without repair (invalid)
+
+
+class NotificationStatus(enum.StrEnum):
+    PENDING = "pending"
+    SENT = "sent"
+    FAILED = "failed"  # gave up after the maximum number of attempts
+    CANCELLED = "cancelled"  # the citizen unsubscribed before it was sent
+
+
 def _pg_enum(py_enum: type[enum.StrEnum], name: str) -> SAEnum:
     return SAEnum(
         py_enum,
@@ -108,6 +124,8 @@ incident_status_enum = _pg_enum(IncidentStatus, "incident_status")
 staff_role_enum = _pg_enum(StaffRole, "staff_role")
 contact_kind_enum = _pg_enum(ContactKind, "contact_kind")
 place_source_enum = _pg_enum(PlaceSource, "place_source")
+notification_event_enum = _pg_enum(NotificationEvent, "notification_event")
+notification_status_enum = _pg_enum(NotificationStatus, "notification_status")
 
 
 def _point() -> Geography:
@@ -257,6 +275,8 @@ class Report(Base):
         ),
         CheckConstraint("confidence BETWEEN 0 AND 1", name="confidence_range"),
         Index("ix_reports_incident_id", "incident_id"),
+        # For deleting contacts (ON DELETE SET NULL) and the retention task.
+        Index("ix_reports_contact_id", "contact_id"),
         Index("ix_reports_location", "location", postgresql_using="gist"),
         Index("ix_reports_submitter_key_submitted_at", "submitter_key", "submitted_at"),
     )
@@ -356,4 +376,75 @@ class SensitivePlace(Base):
         CheckConstraint("(source = 'osm') = (osm_id IS NOT NULL)", name="osm_has_id"),
         Index("uq_sensitive_places_osm_id", "osm_id", unique=True),
         Index("ix_sensitive_places_geom", "geom", postgresql_using="gist"),
+    )
+
+
+class ContactVerification(Base):
+    """
+    A pending "confirm your email" link for one report (ADR 0007). Only the SHA-256
+    of the token is stored; the raw token exists only in the email. Rows are deleted
+    by the retention task once expired.
+    """
+
+    __tablename__ = "contact_verifications"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    contact_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("contacts.id", ondelete="CASCADE"), nullable=False
+    )
+    report_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("reports.id", ondelete="CASCADE"), nullable=False
+    )
+    token_hash: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    # HMAC of the requester's IP, for rate limiting only (see infraalert.ratelimit).
+    requester_key: Mapped[str | None] = mapped_column(Text)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = _created_at()
+
+    __table_args__ = (
+        Index("ix_contact_verifications_report_id_created_at", "report_id", "created_at"),
+        Index("ix_contact_verifications_requester_key_created_at", "requester_key", "created_at"),
+        Index("ix_contact_verifications_contact_id", "contact_id"),
+    )
+
+
+class Notification(Base):
+    """
+    The outbox of citizen updates. Rows are written in the same transaction as the
+    dispatch action that caused them and sent afterwards (infraalert.notify.outbox).
+    """
+
+    __tablename__ = "notifications"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    report_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("reports.id", ondelete="CASCADE"), nullable=False
+    )
+    contact_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("contacts.id", ondelete="CASCADE"), nullable=False
+    )
+    event: Mapped[NotificationEvent] = mapped_column(notification_event_enum, nullable=False)
+    status: Mapped[NotificationStatus] = mapped_column(
+        notification_status_enum, nullable=False, server_default=NotificationStatus.PENDING.value
+    )
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    last_error: Mapped[str | None] = mapped_column(Text)
+    # Backoff: a pending row is not retried before this.
+    next_attempt_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    created_at: Mapped[datetime] = _created_at()
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        # Each event is sent at most once per report.
+        UniqueConstraint("report_id", "event", name="uq_notifications_report_id_event"),
+        CheckConstraint("(status = 'sent') = (sent_at IS NOT NULL)", name="sent_at"),
+        Index(
+            "ix_notifications_pending",
+            "next_attempt_at",
+            postgresql_where=text("status = 'pending'"),
+        ),
+        Index("ix_notifications_contact_id", "contact_id"),
     )
