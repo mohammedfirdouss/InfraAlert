@@ -103,6 +103,32 @@ describe('TurnstileWidget', () => {
     expect(onToken).toHaveBeenLastCalledWith(null)
   })
 
+  it('keeps delivering fresh tokens to the latest onToken after reset', async () => {
+    const TurnstileWidget = await loadWidget()
+    const api = stubTurnstile()
+    const first = vi.fn()
+    const latest = vi.fn()
+    const ref = createRef()
+    const { rerender } = render(<TurnstileWidget ref={ref} onToken={first} />)
+    await fireLoad(api)
+    const options = api.render.mock.calls[0][1]
+    act(() => options.callback('tok-1'))
+    expect(first).toHaveBeenLastCalledWith('tok-1')
+
+    act(() => ref.current.reset())
+    rerender(<TurnstileWidget ref={ref} onToken={latest} />)
+    act(() => options.callback('tok-2'))
+    expect(latest).toHaveBeenLastCalledWith('tok-2')
+
+    act(() => ref.current.reset())
+    expect(latest).toHaveBeenLastCalledWith(null)
+    act(() => options.callback('tok-3'))
+    expect(latest).toHaveBeenLastCalledWith('tok-3')
+    expect(api.render).toHaveBeenCalledTimes(1)
+    expect(api.reset).toHaveBeenCalledTimes(2)
+    expect(first).not.toHaveBeenCalledWith('tok-2')
+  })
+
   it('removes the widget on unmount', async () => {
     const TurnstileWidget = await loadWidget()
     const api = stubTurnstile()

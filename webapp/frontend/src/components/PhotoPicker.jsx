@@ -127,6 +127,22 @@ export default function PhotoPicker({ value, onChange, onBusyChange, disabled = 
     onChangeRef.current(doneKey ? doneKey.split('\n') : [])
   }, [doneKey])
 
+  // Follow the parent when it clears `value` (e.g. after 409 'photo_already_used'):
+  // drop every tile, abort uploads and free previews. An echo of our own
+  // onChange([]) (user removed the last finished photo) is not a clear.
+  const valueKey = (value || []).join('\n')
+  useEffect(() => {
+    if (valueKey !== '' || lastEmitted.current === '') return
+    lastEmitted.current = ''
+    for (const c of controllers.current.values()) c.abort()
+    controllers.current.clear()
+    for (const t of tilesRef.current) {
+      if (t.previewUrl) URL.revokeObjectURL(t.previewUrl)
+    }
+    setTiles([])
+    setMessage('')
+  }, [valueKey])
+
   // Report "any upload in flight" transitions.
   const busy = tiles.some((t) => t.status === 'uploading')
   const lastBusy = useRef(false)

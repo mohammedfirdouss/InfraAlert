@@ -60,15 +60,20 @@ function setup(props = {}) {
   function Harness({ disabled }) {
     const [value, setValue] = useState([])
     return (
-      <PhotoPicker
-        value={value}
-        onChange={(names) => {
-          onChange(names)
-          setValue(names)
-        }}
-        onBusyChange={onBusyChange}
-        disabled={disabled}
-      />
+      <>
+        <button type="button" onClick={() => setValue([])}>
+          parent clear
+        </button>
+        <PhotoPicker
+          value={value}
+          onChange={(names) => {
+            onChange(names)
+            setValue(names)
+          }}
+          onBusyChange={onBusyChange}
+          disabled={disabled}
+        />
+      </>
     )
   }
   const user = userEvent.setup({ applyAccept: false })
@@ -176,7 +181,9 @@ describe('PhotoPicker', () => {
 
     expect(requestUpload).toHaveBeenCalledTimes(3)
     expect(screen.getAllByRole('listitem')).toHaveLength(3)
-    expect(screen.getByRole('status')).toHaveTextContent(/up to 3 photos\. 2 photos were not added/i)
+    expect(screen.getByRole('status')).toHaveTextContent(
+      /up to 3 photos\. 2 photos were not added/i,
+    )
     expect(screen.queryByLabelText(/add photos/i)).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /remove photo 3/i }))
@@ -214,5 +221,41 @@ describe('PhotoPicker', () => {
     expect(uploads[0].signal.aborted).toBe(true)
     expect(URL.revokeObjectURL).toHaveBeenCalledTimes(1)
     expect(onBusyChange).toHaveBeenLastCalledWith(false)
+  })
+  it('resets everything when the parent clears value', async () => {
+    const { user, onChange, onBusyChange } = setup()
+    await user.upload(input(), [photo('a.jpg'), photo('b.jpg'), photo('c.jpg')])
+    await waitForUploads(3)
+    await act(async () => uploads[0].resolve())
+    await act(async () => uploads[1].reject(new ApiError(0, 'upload_failed')))
+    expect(onChange).toHaveBeenLastCalledWith(['uploads/obj-1'])
+    onChange.mockClear()
+
+    // e.g. the form got 409 'photo_already_used' and set value=[]
+    await user.click(screen.getByRole('button', { name: 'parent clear' }))
+    expect(uploads[2].signal.aborted).toBe(true)
+    expect(URL.revokeObjectURL).toHaveBeenCalledTimes(3)
+    expect(screen.queryByRole('list', { name: /photos/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(onBusyChange).toHaveBeenLastCalledWith(false)
+    expect(onChange).not.toHaveBeenCalled()
+    expect(input()).toBeInTheDocument()
+
+    // The picker works again afterwards.
+    await user.upload(input(), photo('d.jpg'))
+    await waitForUploads(4)
+    await act(async () => uploads[3].resolve())
+    expect(onChange).toHaveBeenLastCalledWith(['uploads/obj-4'])
+  })
+
+  it('removing the last finished photo does not wipe other tiles', async () => {
+    const { user, onChange } = setup()
+    await user.upload(input(), [photo('a.jpg'), photo('b.jpg')])
+    await waitForUploads(2)
+    await act(async () => uploads[0].resolve())
+    await user.click(screen.getByRole('button', { name: /remove photo 1/i }))
+    expect(onChange).toHaveBeenLastCalledWith([])
+    expect(screen.getAllByRole('listitem')).toHaveLength(1)
+    expect(uploads[1].signal.aborted).toBe(false)
   })
 })
