@@ -417,6 +417,7 @@ class NearbyIncident:
     distance_m: float
     report_count: int
     headline: str
+    location: LatLng
 
 
 def nearby_incidents(session: Session, incident_id: uuid.UUID) -> list[NearbyIncident]:
@@ -437,8 +438,11 @@ def nearby_incidents(session: Session, incident_id: uuid.UUID) -> list[NearbyInc
         .correlate(Incident)
         .scalar_subquery()
     )
+    lat, lng = _latlng(Incident.location)
     rows = session.execute(
-        select(Incident.id, Incident.issue_type, Incident.status, distance, count, headline)
+        select(
+            Incident.id, Incident.issue_type, Incident.status, distance, count, headline, lat, lng
+        )
         .where(
             Incident.id != incident_id,
             Incident.status.in_(OPEN),
@@ -447,4 +451,9 @@ def nearby_incidents(session: Session, incident_id: uuid.UUID) -> list[NearbyInc
         .order_by(distance)
         .limit(20)
     ).all()
-    return [NearbyIncident(r[0], r[1], r[2], round(float(r[3]), 1), r[4], r[5] or "") for r in rows]
+    return [
+        NearbyIncident(
+            r[0], r[1], r[2], round(float(r[3]), 1), r[4], r[5] or "", LatLng(r[6], r[7])
+        )
+        for r in rows
+    ]

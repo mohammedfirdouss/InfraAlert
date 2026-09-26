@@ -83,7 +83,7 @@ const patch = (path, body) => request(path, { method: 'PATCH', body: JSON.string
  *   reports: IncidentReport[], assignments: AssignmentView[], audit: AuditEntry[],
  * }} IncidentDetail
  * @typedef {{ id: string, name: string, skilled: boolean, busy_with_incident_id: string | null, distance_m: number, suggested: boolean }} CandidateTeam
- * @typedef {{ id: string, issue_type: string | null, status: IncidentStatus, distance_m: number, report_count: number, headline: string }} NearbyIncident
+ * @typedef {{ id: string, issue_type: string | null, status: IncidentStatus, distance_m: number, report_count: number, headline: string, location: LatLng }} NearbyIncident
  * @typedef {{ id: string, name: string, skills: string[], base_location: LatLng, active: boolean, busy_with_incident_id: string | null }} Team
  * @typedef {{ id: string, email: string, display_name: string, role: StaffRole, status: 'invited' | 'active' | 'deactivated', created_at: string }} Member
  */
