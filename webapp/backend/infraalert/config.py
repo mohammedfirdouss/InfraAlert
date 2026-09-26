@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 
 
 def _require(name: str) -> str:
@@ -48,11 +48,11 @@ class Settings:
             rate_limit_secret=_require("RATE_LIMIT_SECRET"),
             rate_limit_per_hour=int(os.getenv("RATE_LIMIT_PER_HOUR", "5")),
             trusted_proxy_hops=int(os.getenv("TRUSTED_PROXY_HOPS", "0")),
-            storage_backend=storage,
+            storage_backend=cast(Literal["gcs", "local"], storage),
             gcs_bucket=_require("GCS_BUCKET") if storage == "gcs" else None,
             local_upload_dir=Path(os.getenv("LOCAL_UPLOAD_DIR", "var/uploads")),
             public_base_url=os.getenv("PUBLIC_BASE_URL", "http://localhost:8000").rstrip("/"),
-            tasks_backend=tasks,
+            tasks_backend=cast(Literal["log", "cloud_tasks"], tasks),
             cloud_tasks_queue=_require("CLOUD_TASKS_QUEUE") if tasks == "cloud_tasks" else None,
             tasks_target_url=_require("TASKS_TARGET_URL") if tasks == "cloud_tasks" else None,
             tasks_service_account=(
