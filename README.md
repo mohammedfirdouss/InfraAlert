@@ -11,7 +11,7 @@ model, computes priority, and a human dispatcher decides who is sent.
 
 ## Demo
 
-<!-- Drag the demo video (infraalert-demo.mp4) into this spot on GitHub to embed it. -->
+https://github.com/user-attachments/assets/d5818887-fe4e-4b69-89f1-fe78c96f96dd
 
 ![The citizen form: pin the problem on the map, describe it in your own words, and add photos. No account needed](docs/screenshots/report-form.jpg)
 
