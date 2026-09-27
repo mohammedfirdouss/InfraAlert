@@ -93,31 +93,6 @@ Backend database tests run against a real PostGIS: each run creates and drops it
 throwaway database on `TEST_DATABASE_URL` (the Makefile defaults it to the `db-up` database).
 Without it those tests are skipped. `make test-backend` and `make test-frontend` run one side.
 
-## Project layout
-
-```
-webapp/
-  Dockerfile              the single service image (frontend build + backend)
-  backend/                Python package `infraalert` (uv workspace member)
-    main.py               `uvicorn main:app` entrypoint
-    alembic.ini, migrations/
-    infraalert/
-      app.py, config.py, deps.py   app factory, settings, wiring of the backends
-      citizen/            report submission and public report status
-      processing/         Cloud Tasks worker: extraction, priority, grouping into incidents
-      staff/              staff auth, dispatch queue, assignments, admin
-      notify/             citizen email updates (verification, outbox, retention)
-      places/             sensitive places and the OpenStreetMap import
-      db/                 SQLAlchemy models and sessions
-      cli.py              `python -m infraalert.cli create-admin | seed-dev`
-    tests/
-  frontend/               Vite + React (citizen site and /staff dashboard)
-docs/
-  adr/                    architecture decision records
-  deploy.md               Google Cloud deployment guide
-scripts/                  toolchain setup (uv, gcloud, .env)
-docker-compose.yml        PostGIS + the app for local use
-```
 
 ## Deployment
 
