@@ -9,6 +9,20 @@ model, computes priority, and a human dispatcher decides who is sent.
 - Architecture decisions: [docs/adr/](docs/adr/) (start with [0001](docs/adr/0001-modular-monolith.md))
 - Production deployment: [docs/deploy.md](docs/deploy.md)
 
+## Demo
+
+<!-- Drag the demo video (infraalert-demo.mp4) into this spot on GitHub to embed it. -->
+
+![The citizen form: pin the problem on the map, describe it in your own words, and add photos. No account needed](docs/screenshots/report-form.jpg)
+
+![The staff queue: incidents ranked by priority, with the suggested team for each and a map of where they are](docs/screenshots/queue-open.jpg)
+
+![A new report the system couldn't read goes to a person to classify, and can't be assigned until it has a type](docs/screenshots/incident-triage.jpg)
+
+![Once classified, the priority score is broken down by component, next to the nearby sensitive places and the suggested team](docs/screenshots/incident-typed.jpg)
+
+![The citizen's status page moves on when a team is assigned, without the staff-only detail](docs/screenshots/citizen-status.jpg)
+
 ## Architecture
 
 One FastAPI service (a modular monolith, [ADR 0001](docs/adr/0001-modular-monolith.md)) serves
