@@ -10,6 +10,7 @@ from sqlalchemy import text
 
 from infraalert import dev_uploads
 from infraalert.citizen import api as citizen_api
+from infraalert.concurrency import ConcurrencyLimitMiddleware
 from infraalert.config import Settings
 from infraalert.deps import Deps, build_deps
 from infraalert.notify import api as notify_api
@@ -41,6 +42,7 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(ConcurrencyLimitMiddleware, limit=deps.settings.max_concurrent_requests)
 
     @app.get("/api/health")
     def health() -> dict[str, str]:

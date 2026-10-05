@@ -25,6 +25,9 @@ class Settings:
     # Proxies that append to X-Forwarded-For after the client's own entry:
     # 0 when Cloud Run is hit directly, 1 behind an external HTTPS load balancer.
     trusted_proxy_hops: int = 0
+    # Requests allowed to run at once in this process; the rest queue. Keep it
+    # below FastAPI's 40 worker threads and the database pool (see concurrency.py).
+    max_concurrent_requests: int = 30
 
     storage_backend: Literal["gcs", "local"] = "local"
     gcs_bucket: str | None = None
@@ -90,6 +93,7 @@ class Settings:
             rate_limit_per_hour=int(os.getenv("RATE_LIMIT_PER_HOUR", "5")),
             captcha_backend=cast(Literal["turnstile", "disabled"], captcha),
             trusted_proxy_hops=int(os.getenv("TRUSTED_PROXY_HOPS", "0")),
+            max_concurrent_requests=int(os.getenv("MAX_CONCURRENT_REQUESTS", "30")),
             storage_backend=cast(Literal["gcs", "local"], storage),
             gcs_bucket=_require("GCS_BUCKET") if storage == "gcs" else None,
             local_upload_dir=Path(os.getenv("LOCAL_UPLOAD_DIR", "var/uploads")),
