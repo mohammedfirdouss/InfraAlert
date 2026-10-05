@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
+import queue
 import threading
 import time
 import uuid
@@ -27,16 +28,34 @@ class TaskQueue(Protocol):
 
 class InlineTaskQueue:
     """
-    Local development: process the report in a background thread of this
-    process, retrying a model outage a few times like the real queue would.
+    Local development: process reports on a fixed set of background threads in
+    this process, retrying a model outage a few times like the real queue would.
+
+    The worker count is the inline equivalent of Cloud Tasks' max concurrent
+    dispatches. It used to be one new thread per report, which under load put
+    dozens of threads in line for the same per-issue-type matching lock, each
+    holding a database connection, until the pool ran dry and requests failed
+    (scripts/loadtest/README.md). A queue holds the backlog instead.
     """
 
-    def __init__(self, process: Callable[[uuid.UUID, int], object], retry_delay: float = 5.0):
+    def __init__(
+        self,
+        process: Callable[[uuid.UUID, int], object],
+        retry_delay: float = 5.0,
+        workers: int = 4,
+    ) -> None:
         self._process = process
         self._retry_delay = retry_delay
+        self._pending: queue.SimpleQueue[uuid.UUID] = queue.SimpleQueue()
+        for _ in range(workers):
+            threading.Thread(target=self._work, daemon=True).start()
 
     def enqueue_report_processing(self, report_id: uuid.UUID) -> None:
-        threading.Thread(target=self._run, args=(report_id,), daemon=True).start()
+        self._pending.put(report_id)
+
+    def _work(self) -> None:
+        while True:
+            self._run(self._pending.get())
 
     def _run(self, report_id: uuid.UUID) -> None:
         from infraalert.processing.worker import MAX_EXTRACTION_ATTEMPTS, RetryLater
