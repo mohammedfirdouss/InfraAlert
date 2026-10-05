@@ -2,7 +2,12 @@ from __future__ import annotations
 
 import httpx
 
-from infraalert.captcha import TURNSTILE_VERIFY_URL, CaptchaResult, TurnstileVerifier
+from infraalert.captcha import (
+    TURNSTILE_VERIFY_URL,
+    CaptchaResult,
+    DisabledVerifier,
+    TurnstileVerifier,
+)
 
 
 def verifier(handler) -> TurnstileVerifier:  # type: ignore[no-untyped-def]
@@ -40,3 +45,7 @@ def test_outage_is_reported_as_unavailable() -> None:
 
     for handler in (down, error, garbage):
         assert verifier(handler).verify("tok", None) is CaptchaResult.UNAVAILABLE
+
+
+def test_disabled_verifier_passes_without_calling_turnstile() -> None:
+    assert DisabledVerifier().verify("anything", None) is CaptchaResult.PASSED

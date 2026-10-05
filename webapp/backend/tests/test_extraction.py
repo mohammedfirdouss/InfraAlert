@@ -14,6 +14,7 @@ from infraalert.processing.extraction import (
     ExtractionFailed,
     ExtractionSchema,
     ExtractionUnavailable,
+    FakeExtractor,
     HazardFlag,
     VertexExtractor,
 )
@@ -219,3 +220,22 @@ def test_blocked_prompt_fails() -> None:
 def test_disabled_extractor_always_fails() -> None:
     with pytest.raises(ExtractionFailed, match="extraction is disabled"):
         DisabledExtractor().extract("A pothole", None, [])
+
+
+def test_fake_extractor_reads_issue_and_hazards_from_keywords() -> None:
+    e = FakeExtractor().extract("Gas smell next to a deep POTHOLE on Moi Avenue", None, [])
+    assert e.issue_type is IssueType.POTHOLE
+    assert e.hazard_flags == frozenset({HazardFlag.GAS_LEAK})
+    assert e.model == "fake" and e.confidence == 0.9
+
+
+def test_fake_extractor_defaults_to_other_and_truncates_summary() -> None:
+    long_text = "Something   odd here. " * 50
+    e = FakeExtractor().extract(long_text, None, [])
+    assert e.issue_type is IssueType.OTHER and e.hazard_flags == frozenset()
+    assert len(e.summary) <= MAX_SUMMARY_CHARS and "  " not in e.summary
+
+
+def test_fake_extractor_is_deterministic() -> None:
+    text = "Exposed wire hanging from a broken streetlight"
+    assert FakeExtractor().extract(text, None, []) == FakeExtractor().extract(text, None, [])
