@@ -20,6 +20,8 @@ class Settings:
     # HMAC key for turning client IPs into rate-limit keys; IPs are never stored.
     rate_limit_secret: str
     rate_limit_per_hour: int = 5
+    # "disabled" (load testing only) passes every CAPTCHA without calling Turnstile.
+    captcha_backend: Literal["turnstile", "disabled"] = "turnstile"
     # Proxies that append to X-Forwarded-For after the client's own entry:
     # 0 when Cloud Run is hit directly, 1 behind an external HTTPS load balancer.
     trusted_proxy_hops: int = 0
@@ -36,8 +38,9 @@ class Settings:
     service_url: str | None = None
     tasks_service_account: str | None = None  # signs the OIDC tokens on task requests
 
-    # "disabled" (local dev) sends every report to human triage.
-    extractor_backend: Literal["vertex", "disabled"] = "disabled"
+    # "disabled" (local dev) sends every report to human triage. "fake" (load
+    # testing only) returns facts from keywords, so scoring runs without Gemini.
+    extractor_backend: Literal["vertex", "disabled", "fake"] = "disabled"
     gcp_project: str | None = None
     gcp_location: str | None = None
     gemini_model: str | None = None
@@ -65,19 +68,27 @@ class Settings:
     def from_env(cls) -> Settings:
         storage = _choice("STORAGE_BACKEND", "local", ("gcs", "local"))
         tasks = _choice("TASKS_BACKEND", "inline", ("inline", "cloud_tasks"))
-        extractor = _choice("EXTRACTOR_BACKEND", "disabled", ("vertex", "disabled"))
+        extractor = _choice("EXTRACTOR_BACKEND", "disabled", ("vertex", "disabled", "fake"))
+        captcha = _choice("CAPTCHA_BACKEND", "turnstile", ("turnstile", "disabled"))
         staff_auth = _choice("STAFF_AUTH_BACKEND", "dev", ("identity_platform", "dev"))
         email = _choice("EMAIL_BACKEND", "console", ("smtp", "console"))
         cloud = tasks == "cloud_tasks"
         vertex = extractor == "vertex"
         if staff_auth == "dev" and cloud:
             raise RuntimeError("STAFF_AUTH_BACKEND=dev is for local development only")
+        if extractor == "fake" and cloud:
+            raise RuntimeError("EXTRACTOR_BACKEND=fake is for load testing only")
+        if captcha == "disabled" and cloud:
+            raise RuntimeError("CAPTCHA_BACKEND=disabled is for load testing only")
         identity_platform = staff_auth == "identity_platform"
         return cls(
             database_url=_require("DATABASE_URL"),
-            turnstile_secret_key=_require("TURNSTILE_SECRET_KEY"),
+            turnstile_secret_key=(
+                _require("TURNSTILE_SECRET_KEY") if captcha == "turnstile" else ""
+            ),
             rate_limit_secret=_require("RATE_LIMIT_SECRET"),
             rate_limit_per_hour=int(os.getenv("RATE_LIMIT_PER_HOUR", "5")),
+            captcha_backend=cast(Literal["turnstile", "disabled"], captcha),
             trusted_proxy_hops=int(os.getenv("TRUSTED_PROXY_HOPS", "0")),
             storage_backend=cast(Literal["gcs", "local"], storage),
             gcs_bucket=_require("GCS_BUCKET") if storage == "gcs" else None,
@@ -87,7 +98,7 @@ class Settings:
             cloud_tasks_queue=_require("CLOUD_TASKS_QUEUE") if cloud else None,
             service_url=_require("SERVICE_URL").rstrip("/") if cloud else None,
             tasks_service_account=_require("TASKS_SERVICE_ACCOUNT") if cloud else None,
-            extractor_backend=cast(Literal["vertex", "disabled"], extractor),
+            extractor_backend=cast(Literal["vertex", "disabled", "fake"], extractor),
             gcp_project=(_require("GOOGLE_CLOUD_PROJECT") if vertex or identity_platform else None),
             gcp_location=_require("GOOGLE_CLOUD_REGION") if vertex else None,
             gemini_model=_require("GEMINI_MODEL") if vertex else None,

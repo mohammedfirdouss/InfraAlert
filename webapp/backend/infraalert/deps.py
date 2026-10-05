@@ -8,12 +8,17 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session, sessionmaker
 from starlette.requests import Request
 
-from infraalert.captcha import CaptchaVerifier, TurnstileVerifier
+from infraalert.captcha import CaptchaVerifier, DisabledVerifier, TurnstileVerifier
 from infraalert.config import Settings
 from infraalert.db.session import make_engine, make_sessionmaker
 from infraalert.notify.mailer import ConsoleMailer, Mailer, SmtpMailer
 from infraalert.processing.auth import GoogleOidcVerifier, TaskCallerVerifier
-from infraalert.processing.extraction import DisabledExtractor, Extractor, VertexExtractor
+from infraalert.processing.extraction import (
+    DisabledExtractor,
+    Extractor,
+    FakeExtractor,
+    VertexExtractor,
+)
 from infraalert.processing.worker import Processor
 from infraalert.staff.identity import (
     DevVerifier,
@@ -53,6 +58,8 @@ def build_deps(settings: Settings) -> Deps:
         extractor = VertexExtractor(
             settings.gcp_project, settings.gcp_location, settings.gemini_model
         )
+    elif settings.extractor_backend == "fake":
+        extractor = FakeExtractor()
     else:
         extractor = DisabledExtractor()
 
@@ -91,10 +98,16 @@ def build_deps(settings: Settings) -> Deps:
     else:
         mailer = ConsoleMailer(settings.local_outbox_dir, settings.email_from)
 
+    captcha: CaptchaVerifier
+    if settings.captcha_backend == "disabled":
+        captcha = DisabledVerifier()
+    else:
+        captcha = TurnstileVerifier(settings.turnstile_secret_key)
+
     return Deps(
         settings=settings,
         sessions=sessions,
-        captcha=TurnstileVerifier(settings.turnstile_secret_key),
+        captcha=captcha,
         storage=storage,
         tasks=tasks,
         processor=processor,

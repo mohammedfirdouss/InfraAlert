@@ -250,6 +250,41 @@ class VertexExtractor:
         return to_extraction(parsed, self._model)
 
 
+class FakeExtractor:
+    """
+    Load testing only: returns facts from keywords in the description, with no
+    model call, so the full scoring and dispatch path runs at no API cost.
+    Deterministic, so two runs over the same reports score identically.
+    """
+
+    _ISSUES = (
+        ("pothole", IssueType.POTHOLE),
+        ("leak", IssueType.WATER_LEAK),
+        ("power", IssueType.POWER_OUTAGE),
+        ("streetlight", IssueType.BROKEN_STREETLIGHT),
+        ("sewage", IssueType.SEWAGE),
+        ("road", IssueType.ROAD_DAMAGE),
+    )
+    _HAZARDS = (
+        ("gas", HazardFlag.GAS_LEAK),
+        ("wire", HazardFlag.EXPOSED_WIRES),
+        ("fire", HazardFlag.FIRE),
+        ("flood", HazardFlag.FLOODING),
+        ("injur", HazardFlag.INJURY),
+    )
+
+    def extract(
+        self, description: str, address_text: str | None, photos: list[PhotoRef]
+    ) -> Extraction:
+        text = description.lower()
+        issue = next((t for word, t in self._ISSUES if word in text), IssueType.OTHER)
+        hazards = frozenset(h for word, h in self._HAZARDS if word in text)
+        summary = " ".join(description.split())[:MAX_SUMMARY_CHARS]
+        return Extraction(
+            issue_type=issue, hazard_flags=hazards, summary=summary, confidence=0.9, model="fake"
+        )
+
+
 class DisabledExtractor:
     """For local development without Vertex credentials: every report goes to human triage."""
 

@@ -49,3 +49,10 @@ class TurnstileVerifier:
             return CaptchaResult.PASSED
         logger.info("Turnstile rejected token: %s", body.get("error-codes"))
         return CaptchaResult.FAILED
+
+
+class DisabledVerifier:
+    """Load testing only: passes every token without calling Turnstile."""
+
+    def verify(self, token: str, remote_ip: str | None) -> CaptchaResult:
+        return CaptchaResult.PASSED
