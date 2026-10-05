@@ -107,6 +107,15 @@ Backend database tests run against a real PostGIS: each run creates and drops it
 throwaway database on `TEST_DATABASE_URL` (the Makefile defaults it to the `db-up` database).
 Without it those tests are skipped. `make test-backend` and `make test-frontend` run one side.
 
+## Performance
+
+A reproducible load test (`scripts/loadtest/`) found that throughput collapsed from 280 to
+36 requests/s at 800 simulated users. The cause was a deadlock between FastAPI's worker
+threads and the database pool. After the fixes, the API sustains about 520 requests/s at
+800 users and 550 at 1,200 with no errors. Profiling with memray then cut allocations by
+77% by stopping connection churn. Method, results and caveats are in
+[scripts/loadtest/README.md](scripts/loadtest/README.md).
+
 
 ## Deployment
 
