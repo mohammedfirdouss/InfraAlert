@@ -26,6 +26,13 @@
     border-radius: 6px;
   }
 
+  /* On asphalt the ink outline disappears: dark containers carry .on-dark and
+     everything focusable inside them gets signal yellow (signal-400) instead. */
+  .on-dark:focus-visible,
+  .on-dark :focus-visible {
+    outline-color: #ffd60a;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -63,7 +70,8 @@
 
   .btn-ghost {
     @apply inline-flex min-h-[44px] items-center gap-2 rounded-md px-3 text-[15px] font-bold text-ink
-      underline decoration-2 underline-offset-4 decoration-signal-500 hover:decoration-ink;
+      underline decoration-2 underline-offset-4 decoration-signal-500 hover:decoration-ink
+      disabled:cursor-not-allowed disabled:no-underline disabled:opacity-45;
   }
 
   /* Surfaces */

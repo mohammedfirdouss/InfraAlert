@@ -13,6 +13,7 @@ import { ApiError, submitReport } from '../api/client.js'
 import { config } from '../config.js'
 import LocationPicker from '../components/LocationPicker.jsx'
 import PhotoPicker from '../components/PhotoPicker.jsx'
+import SectionHeading from '../components/SectionHeading.jsx'
 import TurnstileWidget from '../components/TurnstileWidget.jsx'
 
 const DESCRIPTION_MIN = 10
@@ -80,17 +81,6 @@ function FieldError({ id, message }) {
       <AlertCircle size={15} strokeWidth={2.5} className="shrink-0" aria-hidden="true" />
       {message}
     </p>
-  )
-}
-
-/** "01  WHERE": the field-report section header. */
-function SectionHeading({ no, children }) {
-  return (
-    <h2 className="mb-5 flex items-center gap-3">
-      <span className="section-no">{no}</span>
-      <span className="section-title">{children}</span>
-      <span className="h-px flex-1 bg-concrete-200" aria-hidden="true" />
-    </h2>
   )
 }
 
@@ -181,7 +171,6 @@ export default function ReportForm() {
     if (!location) errs.location = MESSAGES.location
     if (trimmedLength < DESCRIPTION_MIN) errs.description = MESSAGES.descriptionShort
     else if (trimmedLength > DESCRIPTION_MAX) errs.description = MESSAGES.descriptionLong
-    if (address.trim().length > ADDRESS_MAX) errs.address = MESSAGES.address
     if (!captchaToken) errs.captcha = MESSAGES.captcha
     return errs
   }
@@ -331,7 +320,7 @@ export default function ReportForm() {
           >
             <Phone size={20} strokeWidth={2.5} aria-hidden="true" />
             <span className="text-sm font-extrabold uppercase tracking-sign">Call</span>{' '}
-            <span className="font-mono text-2xl font-bold tracking-tight">
+            <span className="font-mono text-2xl font-semibold tracking-tight">
               {config.emergencyNumber}
             </span>
           </a>
@@ -345,7 +334,7 @@ export default function ReportForm() {
       >
         {/* 01 Where */}
         <div className="p-5 sm:p-7">
-          <SectionHeading no="01">
+          <SectionHeading no="01" rule>
             Where
           </SectionHeading>
           <span id="location-label" className={QUESTION}>
@@ -371,7 +360,7 @@ export default function ReportForm() {
 
         {/* 02 What's wrong */}
         <div className="p-5 sm:p-7">
-          <SectionHeading no="02">
+          <SectionHeading no="02" rule>
             What&apos;s wrong
           </SectionHeading>
           <div>
@@ -449,7 +438,7 @@ export default function ReportForm() {
 
         {/* 03 Photos */}
         <div className="p-5 sm:p-7">
-          <SectionHeading no="03">
+          <SectionHeading no="03" rule>
             Photos
           </SectionHeading>
           <span id="photos-label" className={QUESTION}>
@@ -479,7 +468,7 @@ export default function ReportForm() {
 
         {/* 04 Send */}
         <div className="p-5 sm:p-7">
-          <SectionHeading no="04">
+          <SectionHeading no="04" rule>
             Send
           </SectionHeading>
 

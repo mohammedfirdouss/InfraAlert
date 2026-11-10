@@ -5,40 +5,28 @@ import {
   Bookmark,
   Check,
   CircleDashed,
-  CircleHelp,
-  Construction,
   Copy,
-  Droplets,
-  Lightbulb,
-  RefreshCw,
-  TriangleAlert,
-  Waves,
-  Zap,
 } from 'lucide-react'
-import { getReport } from '../api/client.js'
-import StatusTimeline, { STATUS_STEPS } from '../components/StatusTimeline.jsx'
+import { ApiError, getReport } from '../api/client.js'
+import { formatLatLng } from '../format.js'
+import { ISSUE_TYPE_BY_VALUE } from '../issueTypes.js'
+import StatusTimeline, { FINAL_STATUSES, STATUS_STEPS } from '../components/StatusTimeline.jsx'
 import LocationPreview from '../components/LocationPreview.jsx'
+import RetryableError from '../components/RetryableError.jsx'
+import SectionHeading from '../components/SectionHeading.jsx'
 import UpdatesSignup from '../components/UpdatesSignup.jsx'
 
 /** How often an open report is re-fetched while the page is visible. */
 export const POLL_INTERVAL_MS = 30_000
 
-/** Statuses after which nothing changes, so polling stops. */
-const FINAL_STATUSES = new Set(['resolved', 'closed'])
-
-/** Citizen-facing names for the issue-type enum. */
-export const ISSUE_TYPE_LABELS = {
-  pothole: 'Pothole',
-  water_leak: 'Water leak',
-  power_outage: 'Power outage',
-  broken_streetlight: 'Broken streetlight',
+/** Citizen-facing names, where they differ from the shared issue-type labels. */
+const CITIZEN_ISSUE_TYPE_LABELS = {
   sewage: 'Sewage problem',
-  road_damage: 'Road damage',
   other: 'Other problem',
 }
 
 /** Plain-language explanation of each status. Never mentions staff-only detail. */
-export const STATUS_EXPLANATIONS = {
+const STATUS_EXPLANATIONS = {
   received: "We've received your report. It's waiting for city staff to look at it.",
   under_review: 'City staff are reviewing your report.',
   team_assigned: 'A repair team has been assigned and will schedule the work.',
@@ -61,7 +49,7 @@ export function formatSubmittedAt(iso) {
 
 /** @param {unknown} err */
 function isNotFound(err) {
-  return err?.name === 'ApiError' && (err.status === 404 || err.status === 422)
+  return err instanceof ApiError && (err.status === 404 || err.status === 422)
 }
 
 /**
@@ -153,17 +141,6 @@ function useReport(id) {
 /** Shared lucide sizing: 18px with a slightly heavier stroke, to sit with Overpass. */
 const ICON = { size: 18, strokeWidth: 2.25, 'aria-hidden': true }
 
-/** Icon for each issue type, shown beside its label. */
-const ISSUE_TYPE_ICONS = {
-  pothole: Construction,
-  water_leak: Droplets,
-  power_outage: Zap,
-  broken_streetlight: Lightbulb,
-  sewage: Waves,
-  road_damage: TriangleAlert,
-  other: CircleHelp,
-}
-
 /** Big headline word for each status. */
 const STATUS_HEADLINES = {
   ...Object.fromEntries(STATUS_STEPS.map((step) => [step.status, step.label])),
@@ -241,7 +218,7 @@ function JustSubmittedBanner() {
           />
           <button
             type="button"
-            className={`${copy === 'copied' ? 'btn-secondary' : 'btn-primary'} shrink-0 sm:w-36`}
+            className="btn-secondary shrink-0 sm:w-36"
             onClick={copyLink}
           >
             {copy === 'copied' ? (
@@ -317,42 +294,6 @@ function NotFound() {
   )
 }
 
-/** @param {{ onRetry: () => void }} props */
-function LoadError({ onRetry }) {
-  return (
-    <div
-      role="alert"
-      className="animate-rise-in rounded-xl border-2 border-hazard-500 bg-hazard-50 p-5 sm:p-6"
-    >
-      <div className="flex items-start gap-3">
-        <TriangleAlert {...ICON} size={22} className="mt-1 shrink-0 text-hazard-600" />
-        <div className="min-w-0">
-          <h1 className="text-xl font-black">We couldn&apos;t load this report</h1>
-          <p className="mt-1 text-asphalt-600">
-            Something went wrong on our side or with your connection. Please try again.
-          </p>
-          <button type="button" className="btn-secondary mt-4" onClick={onRetry}>
-            <RefreshCw {...ICON} />
-            Retry
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-/** Card heading in the field-report voice: "01  PROGRESS". */
-function SectionHeading({ id, no, children }) {
-  return (
-    <h2 id={id} className="flex items-baseline gap-2.5">
-      <span className="section-no" aria-hidden="true">
-        {no}
-      </span>
-      <span className="section-title">{children}</span>
-    </h2>
-  )
-}
-
 /** @param {{ label: string, children: import('react').ReactNode }} props */
 function Detail({ label, children }) {
   return (
@@ -375,12 +316,11 @@ function IssueType({ issueType }) {
       </span>
     )
   }
-  const known = issueType in ISSUE_TYPE_LABELS
-  const Icon = ISSUE_TYPE_ICONS[known ? issueType : 'other']
+  const { value, label, Icon } = ISSUE_TYPE_BY_VALUE.get(issueType) ?? ISSUE_TYPE_BY_VALUE.get('other')
   return (
     <span className="inline-flex items-center gap-2 font-bold">
       <Icon {...ICON} className="shrink-0 text-asphalt-600" />
-      {ISSUE_TYPE_LABELS[known ? issueType : 'other']}
+      {CITIZEN_ISSUE_TYPE_LABELS[value] ?? label}
     </span>
   )
 }
@@ -426,8 +366,7 @@ function StatusHero({ report }) {
 
 /** @param {{ report: import('../api/client.js').Report }} props */
 function ReportView({ report }) {
-  const { lat, lng } = report.location
-  const coords = `${lat.toFixed(5)}, ${lng.toFixed(5)}`
+  const coords = formatLatLng(report.location)
   const photos =
     report.photo_count === 0
       ? 'No photos attached'
@@ -496,7 +435,7 @@ export default function ReportStatusPage() {
   let body
   if (state.phase === 'loading') body = <LoadingSkeleton />
   else if (state.phase === 'not_found') body = <NotFound />
-  else if (state.phase === 'error') body = <LoadError onRetry={retry} />
+  else if (state.phase === 'error') body = <RetryableError onRetry={retry} what="load this report" retryLabel="Retry" />
   else
     body = (
       <>

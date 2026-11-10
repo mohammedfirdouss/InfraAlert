@@ -107,6 +107,12 @@ describe('ReportForm', () => {
     expect(screen.getByText(/not monitored in real time/i)).toBeInTheDocument()
   })
 
+  test('section numbers are decoration: headings are named by their words', () => {
+    renderForm()
+    expect(screen.getByRole('heading', { name: 'Where' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /01/ })).not.toBeInTheDocument()
+  })
+
   test('has no issue-type or phone fields', () => {
     renderForm()
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
