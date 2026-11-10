@@ -1,8 +1,11 @@
 # Build context is the repo root (docker build -f webapp/Dockerfile .).
-# Allow-list: only the backend and frontend sources go into the context.
+# Allow-list: only the backend and frontend sources, and the dependency lock, go
+# into the context.
 *
 !webapp/backend
 !webapp/frontend
+!pyproject.toml
+!uv.lock
 
 # …minus local artefacts inside them.
 **/node_modules

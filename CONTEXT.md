@@ -84,7 +84,7 @@ _Avoid_: Admin (as a general term), operator
 A staff role that triages, merges or splits, assigns, and records status changes for incidents.
 
 **Supervisor**:
-A staff role with everything a dispatcher can do, plus managing teams and viewing statistics.
+A staff role with everything a dispatcher can do, plus managing teams.
 
 **Admin**:
 A staff role that manages staff and sensitive places.
