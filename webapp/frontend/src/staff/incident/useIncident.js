@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { getIncident } from '../api.js'
 
 /** Photo links are signed for about 15 minutes; refresh well before that on return. */
-export const STALE_AFTER_MS = 10 * 60 * 1000
+const STALE_AFTER_MS = 10 * 60 * 1000
 
 /**
  * Load one incident, keep it fresh, and expose a reload for after actions.
@@ -47,7 +47,10 @@ export function useIncident(id) {
   useEffect(() => {
     const onReturn = () => {
       if (document.visibilityState === 'hidden') return
-      if (loadedAt.current && Date.now() - loadedAt.current > STALE_AFTER_MS) reload()
+      if (!loadedAt.current || Date.now() - loadedAt.current <= STALE_AFTER_MS) return
+      // focus and visibilitychange both fire on return: count the reload as started now.
+      loadedAt.current = Date.now()
+      reload()
     }
     window.addEventListener('focus', onReturn)
     document.addEventListener('visibilitychange', onReturn)

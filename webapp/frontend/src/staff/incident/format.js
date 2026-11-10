@@ -2,13 +2,7 @@
  * Pure helpers for the incident page: references, which actions a status
  * allows, plain-language error messages, and readable audit lines.
  */
-import { ApiError } from '../../api/client.js'
-import { ISSUE_TYPES } from '../ui.jsx'
-
-/** "INC 1A2B3C4D": the first 8 hex digits of the id, for speaking over the radio. */
-import { incidentRef } from '../ui.jsx'
-
-export const shortRef = incidentRef
+import { describeError, incidentRef, issueTypeLabel, reportCount } from '../ui.jsx'
 
 export const OPEN_STATUSES = new Set(['new', 'triaged', 'assigned', 'on_site'])
 
@@ -31,9 +25,6 @@ export function allowedActions(status) {
   }
 }
 
-export const issueTypeName = (value) =>
-  ISSUE_TYPES.find((t) => t.value === value)?.label ?? (value ? 'Other' : 'Unclassified')
-
 /**
  * The issue type most reports' extraction suggested (ties: the earliest report's), or null.
  * @param {{ issue_type: string | null }[]} reports
@@ -54,39 +45,26 @@ export function suggestedIssueType(reports) {
 export const LOW_CONFIDENCE = 0.6
 
 /**
- * A plain message for a failed action.
+ * A plain message for a failed action: the incident-specific codes here, the
+ * rest (no permission, no connection, a server fault) from the shared wording.
  * @param {unknown} error
  * @param {{ teamName?: string }} [context]
  */
 export function errorMessage(error, context = {}) {
   const team = context.teamName ?? 'That team'
-  if (!(error instanceof ApiError)) {
-    return "Couldn't reach the server. Check your connection and try again."
-  }
-  switch (error.detail) {
-    case 'team_busy':
-      return `${team} was just assigned elsewhere. Pick another team.`
-    case 'team_unavailable':
-      return `${team} is no longer active. Pick another team.`
-    case 'already_assigned':
-      return `${team} is already assigned to this incident.`
-    case 'classify_first':
-      return 'Set the issue type before assigning a team.'
-    case 'invalid_transition':
-      return 'Someone else changed this incident a moment ago. The page is up to date now; check its status and try again.'
-    case 'cannot_merge_into_itself':
-      return "An incident can't be merged into itself. Pick a different one."
-    case 'cannot_split_all_reports':
-      return 'Leave at least one report on this incident. To move them all, merge it instead.'
-    case 'reports_not_in_incident':
-      return 'Some of those reports are no longer on this incident. The page is up to date now; select again.'
-    case 'incident_not_found':
-      return "That incident doesn't exist. Check the ID."
-    default:
-      if (error.status === 403) return "You don't have permission to do that."
-      if (error.status === 422) return 'Check what you entered and try again.'
-      return 'Something went wrong on our side. Try again.'
-  }
+  return describeError(error, {
+    team_busy: `${team} was just assigned elsewhere. Pick another team.`,
+    team_unavailable: `${team} is no longer active. Pick another team.`,
+    already_assigned: `${team} is already assigned to this incident.`,
+    classify_first: 'Set the issue type before assigning a team.',
+    invalid_transition:
+      'Someone else changed this incident a moment ago. The page is up to date now; check its status and try again.',
+    cannot_merge_into_itself: "An incident can't be merged into itself. Pick a different one.",
+    cannot_split_all_reports: 'Leave at least one report on this incident. To move them all, merge it instead.',
+    reports_not_in_incident:
+      'Some of those reports are no longer on this incident. The page is up to date now; select again.',
+    incident_not_found: "That incident doesn't exist. Check the ID.",
+  })
 }
 
 const UUID_RE = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i
@@ -120,14 +98,13 @@ export function parseIncidentId(text, known = []) {
 export function describeAudit(entry, teamName) {
   const actor = entry.staff_name ?? 'System'
   const d = entry.detail ?? {}
-  const count = (n) => `${n} report${n === 1 ? '' : 's'}`
-  const incidentLink = (id) => (id ? { to: `/staff/incidents/${id}`, label: shortRef(id) } : undefined)
+  const incidentLink = (id) => (id ? { to: `/staff/incidents/${id}`, label: incidentRef(id) } : undefined)
   switch (entry.action) {
     case 'incident.triaged':
       return {
         actor,
-        text: `set the type to ${issueTypeName(d.issue_type)}`,
-        notes: d.previous && d.previous !== d.issue_type ? [`was ${issueTypeName(d.previous)}`] : [],
+        text: `set the type to ${issueTypeLabel(d.issue_type)}`,
+        notes: d.previous && d.previous !== d.issue_type ? [`was ${issueTypeLabel(d.previous)}`] : [],
       }
     case 'incident.assigned':
     case 'incident.reassigned': {
@@ -151,13 +128,13 @@ export function describeAudit(entry, teamName) {
     case 'incident.closed_invalid':
       return { actor, text: 'closed it as invalid', notes: d.reason ? [`“${d.reason}”`] : [] }
     case 'incident.merged':
-      return { actor, text: 'merged it into', link: incidentLink(d.into), notes: d.reports != null ? [`${count(d.reports)} moved`] : [] }
+      return { actor, text: 'merged it into', link: incidentLink(d.into), notes: d.reports != null ? [`${reportCount(d.reports)} moved`] : [] }
     case 'incident.absorbed':
-      return { actor, text: 'merged in', link: incidentLink(d.source), notes: d.reports != null ? [`${count(d.reports)} added`] : [] }
+      return { actor, text: 'merged in', link: incidentLink(d.source), notes: d.reports != null ? [`${reportCount(d.reports)} added`] : [] }
     case 'incident.split':
-      return { actor, text: `moved ${count(d.reports ?? 0)} to`, link: incidentLink(d.new_incident), notes: [] }
+      return { actor, text: `moved ${reportCount(d.reports ?? 0)} to`, link: incidentLink(d.new_incident), notes: [] }
     case 'incident.split_from':
-      return { actor, text: `split this off from`, link: incidentLink(d.source), notes: d.reports != null ? [count(d.reports)] : [] }
+      return { actor, text: `split this off from`, link: incidentLink(d.source), notes: d.reports != null ? [reportCount(d.reports)] : [] }
     case 'report.processed': {
       const notes = [d.matched_existing_incident ? 'grouped with this incident' : 'opened this incident']
       if (typeof d.confidence === 'number') notes.push(`${Math.round(d.confidence * 100)}% confident`)

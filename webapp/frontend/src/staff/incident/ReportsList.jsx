@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Sparkles } from 'lucide-react'
+import { formatLatLng } from '../../format.js'
 import { HazardFlags, IssueTypeLabel, formatDateTime } from '../ui.jsx'
 import Lightbox from './Lightbox.jsx'
 import { LOW_CONFIDENCE } from './format.js'
@@ -43,7 +44,6 @@ function SystemReading({ report }) {
   )
 }
 
-const coords = (loc) => `${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}`
 
 /**
  * Every citizen report in the incident, oldest first, with photos and the
@@ -88,7 +88,7 @@ export default function ReportsList({ reports, selectable, selected, onToggle, o
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-asphalt-500">
                   <span className="font-mono font-semibold text-ink">#{ri + 1}</span>
                   <time dateTime={report.submitted_at}>{formatDateTime(report.submitted_at)}</time>
-                  <span>{report.address_text ?? <span className="font-mono">{coords(report.location)}</span>}</span>
+                  <span>{report.address_text ?? <span className="font-mono">{formatLatLng(report.location)}</span>}</span>
                 </div>
                 <blockquote className="mt-2 border-l-4 border-ink pl-3 text-[15px] leading-snug">
                   {report.description}

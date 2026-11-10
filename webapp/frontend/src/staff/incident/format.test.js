@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '../../api/client.js'
-import { allowedActions, describeAudit, errorMessage, parseIncidentId, shortRef, suggestedIssueType } from './format.js'
+import { incidentRef } from '../ui.jsx'
+import { allowedActions, describeAudit, errorMessage, parseIncidentId, suggestedIssueType } from './format.js'
 
-describe('shortRef', () => {
+describe('incidentRef', () => {
   it('uses the first 8 hex digits, upper case', () => {
-    expect(shortRef('1a2b3c4d-0000-4000-8000-000000000001')).toBe('INC 1A2B3C4D')
+    expect(incidentRef('1a2b3c4d-0000-4000-8000-000000000001')).toBe('INC 1A2B3C4D')
   })
 })
 
@@ -34,7 +35,7 @@ describe('errorMessage', () => {
       'Roads 1 was just assigned elsewhere. Pick another team.',
     )
     expect(errorMessage(new ApiError(409, 'cannot_split_all_reports'))).toMatch(/Leave at least one report/)
-    expect(errorMessage(new TypeError('fetch failed'))).toMatch(/Couldn't reach the server/)
+    expect(errorMessage(new TypeError('fetch failed'))).toMatch(/couldn't reach the server/)
   })
 })
 

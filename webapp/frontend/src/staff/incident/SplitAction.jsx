@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { issueTypeName, shortRef } from './format.js'
+import { incidentRef, issueTypeLabel, reportCount as countReports } from '../ui.jsx'
 import { ActionError, useAction } from './Plate.jsx'
 
 /**
@@ -14,7 +14,7 @@ export default function SplitAction({ incidentId, issueType, reportCount, select
   const { run, pending, error } = useAction(onSplit)
   const n = selected.length
   const all = n === reportCount
-  const reports = `${n} report${n === 1 ? '' : 's'}`
+  const reports = countReports(n)
 
   if (n === 0) {
     return (
@@ -45,8 +45,8 @@ export default function SplitAction({ incidentId, issueType, reportCount, select
   return (
     <div className="space-y-2 rounded-lg border-2 border-ink bg-concrete-50 p-3" role="group" aria-label="Confirm split">
       <p className="text-sm font-bold" id="split-confirm">
-        Move {reports} out of {shortRef(incidentId)} into a new incident?
-        {issueType ? ` It starts as ${issueTypeName(issueType)}, ` : ' It starts unclassified, '}
+        Move {reports} out of {incidentRef(incidentId)} into a new incident?
+        {issueType ? ` It starts as ${issueTypeLabel(issueType)}, ` : ' It starts unclassified, '}
         unassigned, and both incidents are scored again.
       </p>
       <ActionError message={error} />
