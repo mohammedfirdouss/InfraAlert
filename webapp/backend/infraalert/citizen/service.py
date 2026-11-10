@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from infraalert.citizen.status import ReportStatus, report_status
 from infraalert.db.models import Incident, IncidentStatus, IssueType, Report, ReportPhoto
+from infraalert.geo import point_ewkt
 from infraalert.notify.subscriptions import masked_update_email
 from infraalert.storage import CONTENT_TYPE_EXTENSIONS
 
@@ -44,7 +45,7 @@ def create_report(session: Session, new: NewReport, submitter_key: str | None) -
     report = Report(
         description=new.description,
         address_text=new.address_text,
-        location=f"SRID=4326;POINT({new.lng} {new.lat})",
+        location=point_ewkt(new.lat, new.lng),
         submitter_key=submitter_key,
         photos=[
             ReportPhoto(object_name=name, content_type=_content_type(name))

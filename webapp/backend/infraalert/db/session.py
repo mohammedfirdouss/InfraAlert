@@ -24,13 +24,23 @@ DEFAULT_MAX_OVERFLOW = 6
 DEFAULT_POOL_TIMEOUT_SECONDS = 10.0
 
 
-def make_engine(url: str | None = None) -> Engine:
+def make_engine(
+    url: str | None = None,
+    *,
+    pool_size: int = DEFAULT_POOL_SIZE,
+    max_overflow: int = DEFAULT_MAX_OVERFLOW,
+    pool_timeout: float = DEFAULT_POOL_TIMEOUT_SECONDS,
+) -> Engine:
+    """
+    The web app passes its settings (DB_POOL_SIZE, DB_MAX_OVERFLOW, DB_POOL_TIMEOUT);
+    the CLI and migrations use the defaults, and only ever open one connection.
+    """
     return create_engine(
         url or database_url(),
         pool_pre_ping=True,
-        pool_size=int(os.getenv("DB_POOL_SIZE", DEFAULT_POOL_SIZE)),
-        max_overflow=int(os.getenv("DB_MAX_OVERFLOW", DEFAULT_MAX_OVERFLOW)),
-        pool_timeout=float(os.getenv("DB_POOL_TIMEOUT", DEFAULT_POOL_TIMEOUT_SECONDS)),
+        pool_size=pool_size,
+        max_overflow=max_overflow,
+        pool_timeout=pool_timeout,
     )
 
 

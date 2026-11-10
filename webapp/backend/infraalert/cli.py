@@ -5,6 +5,8 @@ Operator commands. Uses DATABASE_URL.
     python -m infraalert.cli seed-dev        # local development only
     python -m infraalert.cli import-osm      # refresh sensitive places from OpenStreetMap
                                              # (CITY_BBOX, OVERPASS_URL)
+    python -m infraalert.cli retention       # apply the data-retention rules once, now
+                                             # (STORAGE_BACKEND, GCS_BUCKET / LOCAL_UPLOAD_DIR)
 """
 
 from __future__ import annotations
@@ -13,15 +15,18 @@ import argparse
 import os
 import sys
 from collections.abc import Sequence
+from pathlib import Path
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from infraalert.config import Settings, _bbox
+from infraalert.config import LOCAL_BASE_URL, Settings, _bbox
 from infraalert.db.models import IssueType, PlaceSource, SensitivePlace, Staff, StaffRole, Team
 from infraalert.db.session import make_engine, make_sessionmaker
+from infraalert.geo import point_ewkt
 from infraalert.notify.retention import run_retention
 from infraalert.places import osm
+from infraalert.storage import GcsPhotoStorage, LocalPhotoStorage, PhotoStorage
 
 DEV_STAFF = [
     ("dispatcher@dev.local", "Dev Dispatcher", StaffRole.DISPATCHER),
@@ -81,7 +86,7 @@ def seed_dev(session: Session) -> list[str]:
     for name, skills, lat, lng in DEV_TEAMS:
         if session.scalars(select(Team.id).where(Team.name == name)).first():
             continue
-        session.add(Team(name=name, skills=skills, base_location=f"SRID=4326;POINT({lng} {lat})"))
+        session.add(Team(name=name, skills=skills, base_location=point_ewkt(lat, lng)))
         created.append(f"team {name}: {', '.join(s.value for s in skills)}")
     for name, category, wkt in DEV_PLACES:
         existing = select(SensitivePlace.id).where(
@@ -155,21 +160,32 @@ def _import_osm() -> int:
     return 0
 
 
-if __name__ == "__main__":
-    sys.exit(main())
-
-
 def _retention() -> int:
     engine = make_engine()
     try:
         with make_sessionmaker(engine)() as session:
-            result = run_retention(session)
+            result = run_retention(session, _storage_from_env())
             session.commit()
     finally:
         engine.dispose()
     print(
         f"submitter keys cleared: {result.submitter_keys_cleared}, "
         f"verifications deleted: {result.verifications_deleted}, "
-        f"contacts deleted: {result.contacts_deleted}"
+        f"contacts deleted: {result.contacts_deleted}, "
+        f"photos deleted: {result.photos_deleted}"
     )
     return 0
+
+
+def _storage_from_env() -> PhotoStorage:
+    """Where photos live, from the web app's storage settings (and nothing else of it)."""
+    if os.getenv("STORAGE_BACKEND", "local") == "gcs":
+        bucket = os.getenv("GCS_BUCKET")
+        if not bucket:
+            raise RuntimeError("GCS_BUCKET is not set")
+        return GcsPhotoStorage(bucket)
+    return LocalPhotoStorage(Path(os.getenv("LOCAL_UPLOAD_DIR", "var/uploads")), LOCAL_BASE_URL)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

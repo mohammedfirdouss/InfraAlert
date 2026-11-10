@@ -78,6 +78,15 @@ class IncidentStatus(enum.StrEnum):
     CLOSED_INVALID = "closed_invalid"
 
 
+# An incident still being worked on: everything before resolved or closed.
+OPEN_STATUSES = (
+    IncidentStatus.NEW,
+    IncidentStatus.TRIAGED,
+    IncidentStatus.ASSIGNED,
+    IncidentStatus.ON_SITE,
+)
+
+
 class StaffRole(enum.StrEnum):
     DISPATCHER = "dispatcher"
     SUPERVISOR = "supervisor"

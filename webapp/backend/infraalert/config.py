@@ -5,6 +5,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, cast
 
+from infraalert.db.session import (
+    DEFAULT_MAX_OVERFLOW,
+    DEFAULT_POOL_SIZE,
+    DEFAULT_POOL_TIMEOUT_SECONDS,
+)
+
+LOCAL_BASE_URL = "http://localhost:8000"
+
 
 def _require(name: str) -> str:
     value = os.getenv(name)
@@ -28,11 +36,15 @@ class Settings:
     # Requests allowed to run at once in this process; the rest queue. Keep it
     # below FastAPI's 40 worker threads and the database pool (see concurrency.py).
     max_concurrent_requests: int = 30
+    # The database pool (see infraalert.db.session for how it is sized).
+    db_pool_size: int = DEFAULT_POOL_SIZE
+    db_max_overflow: int = DEFAULT_MAX_OVERFLOW
+    db_pool_timeout: float = DEFAULT_POOL_TIMEOUT_SECONDS
 
     storage_backend: Literal["gcs", "local"] = "local"
     gcs_bucket: str | None = None
     local_upload_dir: Path = Path("var/uploads")
-    public_base_url: str = "http://localhost:8000"
+    public_base_url: str = LOCAL_BASE_URL
 
     # "inline" (local dev) processes reports in a background thread of this process.
     tasks_backend: Literal["inline", "cloud_tasks"] = "inline"
@@ -94,10 +106,18 @@ class Settings:
             captcha_backend=cast(Literal["turnstile", "disabled"], captcha),
             trusted_proxy_hops=int(os.getenv("TRUSTED_PROXY_HOPS", "0")),
             max_concurrent_requests=int(os.getenv("MAX_CONCURRENT_REQUESTS", "30")),
+            db_pool_size=int(os.getenv("DB_POOL_SIZE", DEFAULT_POOL_SIZE)),
+            db_max_overflow=int(os.getenv("DB_MAX_OVERFLOW", DEFAULT_MAX_OVERFLOW)),
+            db_pool_timeout=float(os.getenv("DB_POOL_TIMEOUT", DEFAULT_POOL_TIMEOUT_SECONDS)),
             storage_backend=cast(Literal["gcs", "local"], storage),
             gcs_bucket=_require("GCS_BUCKET") if storage == "gcs" else None,
             local_upload_dir=Path(os.getenv("LOCAL_UPLOAD_DIR", "var/uploads")),
-            public_base_url=os.getenv("PUBLIC_BASE_URL", "http://localhost:8000").rstrip("/"),
+            # Links in citizen emails: a forgotten value must not ship localhost links.
+            public_base_url=(
+                _require("PUBLIC_BASE_URL")
+                if cloud
+                else os.getenv("PUBLIC_BASE_URL", LOCAL_BASE_URL)
+            ).rstrip("/"),
             tasks_backend=cast(Literal["inline", "cloud_tasks"], tasks),
             cloud_tasks_queue=_require("CLOUD_TASKS_QUEUE") if cloud else None,
             service_url=_require("SERVICE_URL").rstrip("/") if cloud else None,
