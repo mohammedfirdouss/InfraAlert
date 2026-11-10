@@ -2,26 +2,15 @@
  * Shared staff-side vocabulary and small display components, so every staff
  * page names and colours things the same way (CONTEXT.md, DESIGN.md).
  */
-import {
-  CircleHelp,
-  Construction,
-  Droplets,
-  Lightbulb,
-  TriangleAlert,
-  Waves,
-  Zap,
-} from 'lucide-react'
+import { CircleHelp } from 'lucide-react'
+import { ISSUE_TYPES, ISSUE_TYPE_BY_VALUE } from '../issueTypes.js'
 
-export const ISSUE_TYPES = [
-  { value: 'pothole', label: 'Pothole', Icon: Construction },
-  { value: 'road_damage', label: 'Road damage', Icon: TriangleAlert },
-  { value: 'water_leak', label: 'Water leak', Icon: Droplets },
-  { value: 'sewage', label: 'Sewage', Icon: Waves },
-  { value: 'power_outage', label: 'Power outage', Icon: Zap },
-  { value: 'broken_streetlight', label: 'Broken streetlight', Icon: Lightbulb },
-  { value: 'other', label: 'Other', Icon: CircleHelp },
-]
-const ISSUE_TYPE_BY_VALUE = Object.fromEntries(ISSUE_TYPES.map((t) => [t.value, t]))
+// Defined once in src/issueTypes.js (the citizen status page uses it too).
+export { ISSUE_TYPES }
+
+/** "Pothole"; "Other" for a type this build doesn't know; "Unclassified" for none. @param {string | null | undefined} value */
+export const issueTypeLabel = (value) =>
+  value ? (ISSUE_TYPE_BY_VALUE.get(value)?.label ?? 'Other') : 'Unclassified'
 
 export const HAZARD_LABELS = {
   injury: 'Injury',
@@ -36,6 +25,8 @@ export const HAZARD_LABELS = {
 }
 /** Hazards that make an incident critical regardless of its score. */
 export const LIFE_SAFETY_HAZARDS = new Set(['injury', 'gas_leak', 'exposed_wires', 'fire'])
+/** Sort comparator for hazard flags: life-safety ones first, otherwise in the order given. */
+export const lifeSafetyFirst = (a, b) => Number(LIFE_SAFETY_HAZARDS.has(b)) - Number(LIFE_SAFETY_HAZARDS.has(a))
 
 export const STATUS_LABELS = {
   new: 'New',
@@ -62,7 +53,7 @@ export function IssueTypeLabel({ value, className = '' }) {
       </span>
     )
   }
-  const { label, Icon } = ISSUE_TYPE_BY_VALUE[value] ?? ISSUE_TYPE_BY_VALUE.other
+  const { label, Icon } = ISSUE_TYPE_BY_VALUE.get(value) ?? ISSUE_TYPE_BY_VALUE.get('other')
   return (
     <span className={`inline-flex items-center gap-1.5 ${className}`}>
       <Icon size={16} strokeWidth={2.25} aria-hidden="true" />
@@ -129,9 +120,7 @@ export function StatusPill({ status }) {
 /** @param {{ flags: string[] }} props  life-safety flags first, in hazard orange */
 export function HazardFlags({ flags }) {
   if (!flags?.length) return null
-  const sorted = [...flags].sort(
-    (a, b) => Number(LIFE_SAFETY_HAZARDS.has(b)) - Number(LIFE_SAFETY_HAZARDS.has(a)),
-  )
+  const sorted = [...flags].sort(lifeSafetyFirst)
   return (
     <ul className="flex flex-wrap gap-1" aria-label="Hazards">
       {sorted.map((flag) => (
@@ -151,16 +140,30 @@ export function HazardFlags({ flags }) {
 }
 
 /**
+ * How long ago, in the largest unit that reads well: minutes under an hour,
+ * hours under two days, then days. The one place the rounding is decided.
+ * @param {string} iso @param {number} [now]
+ * @returns {{ value: number, unit: 'minute' | 'hour' | 'day' }}
+ */
+export function ageOf(iso, now = Date.now()) {
+  const minutes = Math.max(0, Math.round((now - new Date(iso).getTime()) / 60000))
+  if (minutes < 60) return { value: minutes, unit: 'minute' }
+  const hours = Math.round(minutes / 60)
+  if (hours < 48) return { value: hours, unit: 'hour' }
+  return { value: Math.round(hours / 24), unit: 'day' }
+}
+
+/**
  * "12m", "3h", "2d": how long ago, compact for dense lists.
  * @param {string} iso @param {number} [now]
  */
 export function formatAge(iso, now = Date.now()) {
-  const minutes = Math.max(0, Math.round((now - new Date(iso).getTime()) / 60000))
-  if (minutes < 60) return `${minutes}m`
-  const hours = Math.round(minutes / 60)
-  if (hours < 48) return `${hours}h`
-  return `${Math.round(hours / 24)}d`
+  const { value, unit } = ageOf(iso, now)
+  return `${value}${unit[0]}`
 }
+
+/** "1 report", "3 reports". @param {number} n */
+export const reportCount = (n) => `${n} ${n === 1 ? 'report' : 'reports'}`
 
 /**
  * The short reference staff use for an incident: "INC 1A2B3C4D".
@@ -171,10 +174,56 @@ export function incidentRef(id) {
   return `INC ${String(id).replace(/-/g, '').slice(0, 8).toUpperCase()}`
 }
 
+// Built once: constructing a formatter per call is slow, and the queue formats hundreds of rows.
+const dateTimeFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+
 /** @param {string} iso */
-export const formatDateTime = (iso) =>
-  new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso))
+export const formatDateTime = (iso) => dateTimeFormat.format(new Date(iso))
 
 /** @param {number} metres */
 export const formatDistance = (metres) =>
   metres < 1000 ? `${Math.round(metres)} m` : `${(metres / 1000).toFixed(1)} km`
+
+/**
+ * A switch: the checkbox and its track. Wrap it in the `<label>` that names it
+ * (or pass `aria-label`); the track follows the input's state through `peer`.
+ * @param {{ checked: boolean, onChange: (checked: boolean) => void, disabled?: boolean, 'aria-label'?: string }} props
+ */
+export function Switch({ checked, onChange, disabled, 'aria-label': ariaLabel }) {
+  return (
+    <>
+      <input
+        type="checkbox"
+        role="switch"
+        className="peer sr-only"
+        checked={checked}
+        disabled={disabled}
+        aria-label={ariaLabel}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      <span
+        aria-hidden="true"
+        className="relative h-6 w-11 shrink-0 rounded-full border-2 border-ink bg-concrete-200 transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-ink after:transition-transform peer-checked:bg-signal-400 peer-checked:after:translate-x-5 peer-focus-visible:outline peer-focus-visible:outline-[3px] peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink peer-disabled:opacity-50"
+      />
+    </>
+  )
+}
+
+/** The wording shared by every staff error message for a request that never got an answer. */
+export const NETWORK_ERROR = "We couldn't reach the server. Check your connection and try again."
+
+/**
+ * Plain words for a failed request. `messages` maps the backend's detail codes
+ * to the caller's own wording; the rest (no permission, rejected input, a
+ * server fault, no connection) reads the same everywhere.
+ * @param {unknown} error @param {Record<string, string>} [messages]
+ */
+export function describeError(error, messages = {}) {
+  const detail = /** @type {any} */ (error)?.detail
+  if (typeof detail === 'string' && messages[detail]) return messages[detail]
+  const status = /** @type {any} */ (error)?.status
+  if (status === 403) return "You don't have permission to do that."
+  if (status === 422) return 'Some of the details were not accepted. Check them and try again.'
+  if (status) return 'Something went wrong on our side. Try again in a moment.'
+  return NETWORK_ERROR
+}

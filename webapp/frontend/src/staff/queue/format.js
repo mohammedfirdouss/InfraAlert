@@ -2,13 +2,23 @@
  * Pure helpers for the dispatch queue: URL params, tab metadata and the
  * wording of each row's accessible name.
  */
-import { HAZARD_LABELS, ISSUE_TYPES, LIFE_SAFETY_HAZARDS, STATUS_LABELS } from '../ui.jsx'
+import { formatLatLng } from '../../format.js'
+import {
+  HAZARD_LABELS,
+  ISSUE_TYPES,
+  LIFE_SAFETY_HAZARDS,
+  STATUS_LABELS,
+  ageOf,
+  issueTypeLabel,
+  lifeSafetyFirst,
+  reportCount,
+} from '../ui.jsx'
 
 /** @typedef {'triage' | 'open' | 'closed'} QueueTab */
 
 /** @type {QueueTab[]} */
 export const QUEUE_TABS = ['triage', 'open', 'closed']
-export const DEFAULT_TAB = 'open'
+const DEFAULT_TAB = 'open'
 
 /** @type {Record<QueueTab, string>} */
 export const TAB_LABELS = {
@@ -26,33 +36,23 @@ export const parseIssueType = (raw) => (ISSUE_TYPES.some((t) => t.value === raw)
 /** Triage items are unclassified by definition, so the type filter never applies there. */
 export const filterApplies = (tab) => tab !== 'triage'
 
-/** @param {string | null} value */
-export const issueTypeLabel = (value) =>
-  value ? (ISSUE_TYPES.find((t) => t.value === value)?.label ?? 'Other') : 'Unclassified'
-
 /** @param {{ hazard_flags: string[] }} item */
 export const hasLifeSafetyHazard = (item) => item.hazard_flags.some((f) => LIFE_SAFETY_HAZARDS.has(f))
 
 /** @param {{ address_text: string | null, location: { lat: number, lng: number } }} item */
-export const formatPlace = (item) =>
-  item.address_text || `${item.location.lat.toFixed(5)}, ${item.location.lng.toFixed(5)}`
+export const formatPlace = (item) => item.address_text || formatLatLng(item.location)
 
 /** @param {number} n */
-export const formatReportCount = (n) => `×${n} ${n === 1 ? 'report' : 'reports'}`
-
-const plural = (n, unit) => `${n} ${unit}${n === 1 ? '' : 's'} ago`
+export const formatReportCount = (n) => `×${reportCount(n)}`
 
 /**
  * The spoken twin of formatAge ("3h" → "3 hours ago"), with the same rounding.
  * @param {string} iso @param {number} [now]
  */
 export function formatAgeLong(iso, now = Date.now()) {
-  const minutes = Math.max(0, Math.round((now - new Date(iso).getTime()) / 60000))
-  if (minutes < 1) return 'just now'
-  if (minutes < 60) return plural(minutes, 'minute')
-  const hours = Math.round(minutes / 60)
-  if (hours < 48) return plural(hours, 'hour')
-  return plural(Math.round(hours / 24), 'day')
+  const { value, unit } = ageOf(iso, now)
+  if (value === 0) return 'just now'
+  return `${value} ${unit}${value === 1 ? '' : 's'} ago`
 }
 
 /** "hh:mm", 24-hour. @param {Date} date */
@@ -74,11 +74,11 @@ export function describeItem(item, now = Date.now()) {
   const parts = [severity, issueTypeLabel(item.issue_type).toLowerCase()]
   if (item.hazard_flags.length) {
     const flags = [...item.hazard_flags]
-      .sort((a, b) => Number(LIFE_SAFETY_HAZARDS.has(b)) - Number(LIFE_SAFETY_HAZARDS.has(a)))
+      .sort(lifeSafetyFirst)
       .map((f) => (HAZARD_LABELS[f] ?? f).toLowerCase())
     parts.push(`${flags.length === 1 ? 'hazard' : 'hazards'}: ${joinAnd(flags)}`)
   }
-  parts.push(`${item.report_count} ${item.report_count === 1 ? 'report' : 'reports'}`)
+  parts.push(reportCount(item.report_count))
   parts.push(formatAgeLong(item.created_at, now))
   parts.push(formatPlace(item))
   parts.push(STATUS_LABELS[item.status] ?? item.status)

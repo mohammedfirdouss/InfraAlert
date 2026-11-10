@@ -1,5 +1,5 @@
 import { RefreshCw, TriangleAlert } from 'lucide-react'
-import { issueTypeLabel } from './format.js'
+import { issueTypeLabel } from '../ui.jsx'
 
 /** Placeholder rows while a tab's first results load. */
 export function QueueSkeleton() {
