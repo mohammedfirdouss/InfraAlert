@@ -15,20 +15,7 @@ vi.mock('../api.js', () => ({
   split: vi.fn(),
 }))
 
-vi.mock('react-leaflet', () => ({
-  MapContainer: ({ children }) => <div data-testid="map">{children}</div>,
-  TileLayer: () => null,
-  Marker: () => <div data-testid="incident-pin" />,
-  Tooltip: ({ children }) => <span>{children}</span>,
-  CircleMarker: ({ children, eventHandlers }) =>
-    eventHandlers?.click ? (
-      <button type="button" data-testid="nearby-circle" onClick={eventHandlers.click}>
-        {children}
-      </button>
-    ) : (
-      <div data-testid="report-point">{children}</div>
-    ),
-}))
+vi.mock('react-leaflet', () => import('../../test/leafletStandIn.jsx'))
 
 import * as api from '../api.js'
 import Incident from './Incident.jsx'
@@ -317,7 +304,7 @@ describe('Incident page: merge and split', () => {
 
   it('picks a merge target from the map', async () => {
     const user = await loadWith(response())
-    await user.click(screen.getByTestId('nearby-circle'))
+    await user.click(screen.getByRole('button', { name: /click to merge into/ }))
     expect(within(actionsPanel()).getByRole('radio', { name: /INC 9F8E7D6C/ })).toBeChecked()
     expect(screen.getByRole('button', { name: 'Merge into INC 9F8E7D6C' })).toBeInTheDocument()
   })

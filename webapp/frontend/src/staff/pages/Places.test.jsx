@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { ApiError } from '../../api/client.js'
 
-vi.mock('react-leaflet', () => import('../places/leafletStandIn.jsx'))
+vi.mock('react-leaflet', () => import('../../test/leafletStandIn.jsx'))
 vi.mock('../../map.js', () => ({
   tileLayer: { url: 'tiles/{z}/{x}/{y}.png', attribution: 'test' },
   markerIcon: {},
@@ -14,11 +14,9 @@ vi.mock('../api.js', () => ({
   createPlace: vi.fn(),
   updatePlace: vi.fn(),
 }))
-vi.mock('../auth.jsx', () => ({ useStaff: vi.fn() }))
 
 import { createPlace, getPlaces, updatePlace } from '../api.js'
-import { useStaff } from '../auth.jsx'
-import { CLICK_POINT } from '../admin/leafletStandIn.jsx'
+import { CLICK_POINT } from '../../test/leafletStandIn.jsx'
 import Places, { PAGE_SIZE } from './Places.jsx'
 
 const CATEGORIES = [
@@ -104,13 +102,6 @@ function response(overrides = {}) {
   })
 }
 
-function signInAs(role) {
-  useStaff.mockReturnValue({
-    status: 'signed_in',
-    staff: { id: 'me', email: 'me@city.gov', display_name: 'Me', role },
-  })
-}
-
 function renderPage() {
   render(
     <MemoryRouter>
@@ -132,7 +123,6 @@ beforeEach(() => {
   vi.mocked(getPlaces).mockReset().mockResolvedValue(response())
   vi.mocked(createPlace).mockReset()
   vi.mocked(updatePlace).mockReset()
-  signInAs('admin')
 })
 
 describe('Places list', () => {
@@ -488,14 +478,5 @@ describe('the place panel', () => {
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
     expect(updatePlace).not.toHaveBeenCalled()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-  })
-
-  it('is admin-only', async () => {
-    signInAs('supervisor')
-    renderPage()
-    await loaded()
-    expect(screen.queryByRole('button', { name: 'Add place' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Edit Community Clinic' })).not.toBeInTheDocument()
-    expect(screen.getByRole('switch', { name: 'Community Clinic enabled' })).toBeDisabled()
   })
 })

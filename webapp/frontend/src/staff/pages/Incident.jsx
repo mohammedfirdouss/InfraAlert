@@ -12,8 +12,9 @@ import IncidentHeader from '../incident/IncidentHeader.jsx'
 import IncidentMap from '../incident/IncidentMap.jsx'
 import PriorityPanel from '../incident/PriorityPanel.jsx'
 import ReportsList from '../incident/ReportsList.jsx'
-import { OPEN_STATUSES, errorMessage, issueTypeName, shortRef } from '../incident/format.js'
+import { OPEN_STATUSES, errorMessage } from '../incident/format.js'
 import { useIncident } from '../incident/useIncident.js'
+import { incidentRef, issueTypeLabel, reportCount } from '../ui.jsx'
 
 export default function Incident() {
   const { id } = useParams()
@@ -83,16 +84,16 @@ function IncidentView({ id, notify }) {
   )
 
   const actions = useMemo(() => {
-    const ref = shortRef(id)
+    const ref = incidentRef(id)
     return {
-      triage: (type) => act(() => api.triage(id, type), `Type set to ${issueTypeName(type)}.`),
+      triage: (type) => act(() => api.triage(id, type), `Type set to ${issueTypeLabel(type)}.`),
       assign: (team) =>
         act(() => api.assign(id, team.id), `${team.name} assigned to ${ref}.`, { teamName: team.name }),
       onSite: () => act(() => api.markOnSite(id), 'Marked on site.'),
       resolve: (note) => act(() => api.resolve(id, note), `${ref} resolved. Citizens will be told.`),
       close: (reason) => act(() => api.closeInvalid(id, reason), `${ref} closed as invalid.`),
       merge: (intoId) =>
-        act(() => api.merge(id, intoId), `${ref} merged into ${shortRef(intoId)}.`).then((outcome) => {
+        act(() => api.merge(id, intoId), `${ref} merged into ${incidentRef(intoId)}.`).then((outcome) => {
           if (outcome.ok) setMergeTarget(null)
           return outcome
         }),
@@ -100,7 +101,7 @@ function IncidentView({ id, notify }) {
         try {
           const { new_incident_id: newId } = await api.split(id, reportIds)
           notify(
-            `Moved ${reportIds.length} report${reportIds.length === 1 ? '' : 's'} to ${shortRef(newId)}.`,
+            `Moved ${reportCount(reportIds.length)} to ${incidentRef(newId)}.`,
           )
           navigate(`/staff/incidents/${newId}`)
           return { ok: true }
@@ -120,10 +121,10 @@ function IncidentView({ id, notify }) {
   if (loading && !data) return <Skeleton />
 
   if (!data) {
-    if (error instanceof ApiError && error.status === 404) {
+    if (error instanceof ApiError && (error.status === 404 || error.status === 422)) {
       return (
         <div className="mx-auto max-w-lg py-16 text-center">
-          <p className="readout">{shortRef(id)}</p>
+          <p className="readout">{incidentRef(id)}</p>
           <h1 className="mt-3 text-2xl font-black">This incident doesn&apos;t exist</h1>
           <p className="mt-2 text-sm text-asphalt-600">Check the link, or find it from the queue.</p>
           <Link to="/staff" className="btn-secondary mt-6">

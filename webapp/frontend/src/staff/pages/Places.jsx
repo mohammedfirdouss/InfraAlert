@@ -7,9 +7,8 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { List, Map as MapIcon, Plus } from 'lucide-react'
 import { getPlaces, updatePlace } from '../api.js'
-import { useStaff } from '../auth.jsx'
-import { formatDateTime, hasRole } from '../ui.jsx'
-import { EmptyState, LoadError, SkeletonRows, Toasts, describeError, useToasts } from '../admin/feedback.jsx'
+import { describeError, formatDateTime } from '../ui.jsx'
+import { EmptyState, LoadError, SkeletonRows, Toasts, useToasts } from '../admin/feedback.jsx'
 import PlaceFilters from '../places/PlaceFilters.jsx'
 import PlacePanel from '../places/PlacePanel.jsx'
 import PlaceRow, { PLACE_COLS } from '../places/PlaceRow.jsx'
@@ -20,9 +19,6 @@ import { NO_FILTERS, categoryColour, filterPlaces, sortPlaces } from '../places/
 export const PAGE_SIZE = 200
 
 export default function Places() {
-  const staff = useStaff()?.staff ?? null
-  const canEdit = hasRole(staff, 'admin')
-
   const [data, setData] = useState(
     /** @type {{ places: import('../api.js').Place[], categories: import('../api.js').PlaceCategory[], last_import_at: string | null } | null} */ (
       null
@@ -149,7 +145,6 @@ export default function Places() {
               place={place}
               colour={colourOf(place.category)}
               highlighted={highlightedId === place.id}
-              canEdit={canEdit}
               onHover={setHoveredId}
               onOpen={setEditing}
               onSetEnabled={setEnabled}
@@ -180,12 +175,10 @@ export default function Places() {
           </p>
           <LastImport data={data} />
         </div>
-        {canEdit && (
-          <button type="button" className="btn-primary" onClick={() => setEditing(null)} disabled={!data}>
-            <Plus size={18} strokeWidth={2.5} aria-hidden="true" />
-            Add place
-          </button>
-        )}
+        <button type="button" className="btn-primary" onClick={() => setEditing(null)} disabled={!data}>
+          <Plus size={18} strokeWidth={2.5} aria-hidden="true" />
+          Add place
+        </button>
       </header>
 
       {data && <PlaceFilters filters={filters} categories={categories} onChange={changeFilters} />}
@@ -255,7 +248,7 @@ export default function Places() {
         </div>
       </div>
 
-      {canEdit && editing !== undefined && data && (
+      {editing !== undefined && data && (
         <PlacePanel
           key={editing?.id ?? 'new'}
           place={editing}

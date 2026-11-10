@@ -5,9 +5,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getMembers } from '../api.js'
 import { useStaff } from '../auth.jsx'
+import { describeError } from '../ui.jsx'
 import InviteForm from '../admin/InviteForm.jsx'
 import MemberRow, { MEMBER_COLS } from '../admin/MemberRow.jsx'
-import { EmptyState, LoadError, SkeletonRows, Toasts, describeError, useToasts } from '../admin/feedback.jsx'
+import { EmptyState, LoadError, SkeletonRows, Toasts, useToasts } from '../admin/feedback.jsx'
 
 const FILTERS = [
   { value: 'all', label: 'All' },
