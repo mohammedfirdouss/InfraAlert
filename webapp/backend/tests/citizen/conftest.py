@@ -45,6 +45,9 @@ class FakeStorage:
     def view_url(self, object_name: str) -> str:
         return f"https://storage.test/{object_name}?view"
 
+    def delete(self, object_name: str) -> None:
+        pass
+
 
 @dataclass
 class FakeTasks:

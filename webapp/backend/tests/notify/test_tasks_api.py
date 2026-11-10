@@ -84,4 +84,5 @@ def test_retention_task_returns_counts(client: TestClient) -> None:
         "submitter_keys_cleared",
         "verifications_deleted",
         "contacts_deleted",
+        "photos_deleted",
     }

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import timedelta
+from pathlib import Path
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -15,9 +16,11 @@ from infraalert.db.models import (
     Notification,
     NotificationEvent,
     Report,
+    ReportPhoto,
     ReportProcessing,
 )
 from infraalert.notify.retention import run_retention
+from infraalert.storage import LocalPhotoStorage
 
 POINT = "SRID=4326;POINT(36.8219 -1.2921)"
 DAY = timedelta(days=1)
@@ -166,3 +169,57 @@ def test_contacts_are_kept_while_needed_and_deleted_after(session: Session) -> N
         )
         == 0
     )
+
+
+def photo(
+    session: Session, storage: LocalPhotoStorage, report_id: uuid.UUID
+) -> tuple[uuid.UUID, Path]:
+    name = f"reports/{report_id}/{uuid.uuid4().hex}.jpg"
+    storage.save(name, b"jpeg-bytes")
+    row = ReportPhoto(report_id=report_id, object_name=name, content_type="image/jpeg")
+    session.add(row)
+    session.flush()
+    return row.id, storage.directory / name
+
+
+def test_photos_are_deleted_90_days_after_the_incident_closed(
+    session: Session, tmp_path: Path
+) -> None:
+    storage = LocalPhotoStorage(tmp_path, "http://localhost:8000")
+    old = photo(
+        session, storage, report(session, status=IncidentStatus.RESOLVED, closed_ago=91 * DAY)
+    )
+    invalid = photo(
+        session, storage, report(session, status=IncidentStatus.CLOSED_INVALID, closed_ago=91 * DAY)
+    )
+    recent = photo(
+        session, storage, report(session, status=IncidentStatus.RESOLVED, closed_ago=89 * DAY)
+    )
+    still_open = photo(
+        session, storage, report(session, status=IncidentStatus.ASSIGNED, closed_ago=200 * DAY)
+    )
+
+    assert run_retention(session, storage).photos_deleted == 2
+
+    for photo_id, path in (old, invalid):
+        assert not exists(session, ReportPhoto, photo_id) and not path.exists()
+    for photo_id, path in (recent, still_open):
+        assert exists(session, ReportPhoto, photo_id) and path.exists()
+    # Without storage (nothing to delete files with), photos are left alone.
+    assert run_retention(session).photos_deleted == 0
+
+
+def test_a_photo_whose_file_cannot_be_deleted_is_kept_for_the_next_run(
+    session: Session, tmp_path: Path
+) -> None:
+    storage = LocalPhotoStorage(tmp_path, "http://localhost:8000")
+    photo_id, _ = photo(
+        session, storage, report(session, status=IncidentStatus.RESOLVED, closed_ago=91 * DAY)
+    )
+
+    class Broken(LocalPhotoStorage):
+        def delete(self, object_name: str) -> None:
+            raise OSError("storage unavailable")
+
+    assert run_retention(session, Broken(tmp_path, "http://localhost:8000")).photos_deleted == 0
+    assert exists(session, ReportPhoto, photo_id)

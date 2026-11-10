@@ -342,7 +342,21 @@ def test_unsubscribing_cancels_an_update_already_queued(
     assert mailer.sent == []
 
 
-def test_an_update_for_a_replaced_address_is_cancelled_at_send_time(
+def test_an_update_follows_the_report_to_a_replaced_address(deps: Deps, mailer: FakeMailer) -> None:
+    incident = make_incident(deps)
+    [report] = reports_of(deps, incident)
+    old = attach_contact(deps, report, "old@example.com")
+    with deps.sessions() as session:
+        session.add(Notification(report_id=report, contact_id=old, event=E.RESOLVED))
+        session.commit()
+    attach_contact(deps, report, "new@example.com")
+
+    # Each event is queued once per report, so cancelling would lose it for good.
+    assert deliver(deps, mailer) == {"sent": 1}
+    assert [email.to for email in mailer.sent] == ["new@example.com"]
+
+
+def test_an_update_is_cancelled_when_the_replacement_address_is_unverified(
     deps: Deps, mailer: FakeMailer
 ) -> None:
     incident = make_incident(deps)
@@ -351,7 +365,7 @@ def test_an_update_for_a_replaced_address_is_cancelled_at_send_time(
     with deps.sessions() as session:
         session.add(Notification(report_id=report, contact_id=old, event=E.RESOLVED))
         session.commit()
-    attach_contact(deps, report, "new@example.com")
+    attach_contact(deps, report, "new@example.com", verified=False)
 
     assert deliver(deps, mailer) == {"cancelled": 1}
     assert mailer.sent == []
