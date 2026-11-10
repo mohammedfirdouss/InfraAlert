@@ -87,11 +87,16 @@ describe('guards', () => {
     expect(await screen.findByRole('heading', { name: 'Staff sign-in' })).toBeInTheDocument()
   })
 
-  it('tells a dispatcher they have no access to Teams, inside the layout', async () => {
+  it('lets a dispatcher into Teams (the page is read-only for them) but not Staff, inside the layout', async () => {
     signedInAs('dispatcher')
-    renderAt('/staff/teams')
+    const { unmount } = renderAt('/staff/teams')
+    expect(await screen.findByRole('heading', { name: 'Teams page' })).toBeInTheDocument()
+    expect(document.title).toBe('Teams · InfraAlert staff')
+    unmount()
+
+    renderAt('/staff/members')
     expect(await screen.findByRole('heading', { name: "You don't have access to this page" })).toBeInTheDocument()
-    expect(screen.queryByText('Teams page')).not.toBeInTheDocument()
+    expect(screen.queryByText('Members page')).not.toBeInTheDocument()
     expect(sidebarNav()).toBeInTheDocument()
   })
 
@@ -139,7 +144,7 @@ describe('guards', () => {
 
 describe('layout', () => {
   it.each([
-    ['dispatcher', ['Queue']],
+    ['dispatcher', ['Queue', 'Teams']],
     ['supervisor', ['Queue', 'Teams']],
     ['admin', ['Queue', 'Teams', 'Staff', 'Places']],
   ])('shows a %s the right nav items', async (role, labels) => {
@@ -161,6 +166,14 @@ describe('layout', () => {
     const sidebar = within(screen.getByRole('complementary'))
     expect(sidebar.getByText('Sam Supervisor')).toBeInTheDocument()
     expect(sidebar.getByText('Supervisor')).toBeInTheDocument()
+  })
+
+  it('marks the dark sidebar and mobile bar so focus inside them is visible (DESIGN.md)', async () => {
+    signedInAs('dispatcher')
+    renderAt('/staff')
+    await screen.findByRole('heading', { name: 'Queue page' })
+    expect(screen.getByRole('complementary')).toHaveClass('on-dark', 'bg-ink')
+    expect(screen.getByRole('button', { name: 'Open menu' }).closest('.on-dark')).toHaveClass('bg-ink')
   })
 
   it('keeps Queue marked on an incident page', async () => {

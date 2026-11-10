@@ -4,9 +4,9 @@
  */
 import { Check } from 'lucide-react'
 import { unsubscribe } from '../api/client.js'
+import RetryableError from '../components/RetryableError.jsx'
 import {
   LinkProblem,
-  RetryableError,
   TokenPageShell,
   Working,
   isInvalidToken,

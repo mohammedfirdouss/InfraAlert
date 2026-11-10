@@ -8,6 +8,7 @@ import { Inbox, Lock, LogOut, MapPinned, Menu, UserCog, Users, X } from 'lucide-
 import { LogoMark } from '../components/Logo.jsx'
 import { StaffAuthProvider, useStaff } from './auth.jsx'
 import { hasRole, ROLE_LABELS } from './ui.jsx'
+import { useFocusTrap } from './useFocusTrap.js'
 import SignIn from './pages/SignIn.jsx'
 import Queue from './pages/Queue.jsx'
 import Incident from './pages/Incident.jsx'
@@ -15,7 +16,7 @@ import Teams from './pages/Teams.jsx'
 import Members from './pages/Members.jsx'
 import Places from './pages/Places.jsx'
 
-export const STAFF_ROOT = '/staff'
+const STAFF_ROOT = '/staff'
 
 const NAV_ITEMS = [
   {
@@ -26,7 +27,8 @@ const NAV_ITEMS = [
     // Incidents are opened from the queue, so the queue stays marked.
     isActive: (path) => path === STAFF_ROOT || path === `${STAFF_ROOT}/` || path.startsWith(`${STAFF_ROOT}/incidents`),
   },
-  { to: `${STAFF_ROOT}/teams`, label: 'Teams', Icon: Users, minRole: 'supervisor' },
+  // Dispatchers see the teams read-only; changing them is for supervisors (the page checks).
+  { to: `${STAFF_ROOT}/teams`, label: 'Teams', Icon: Users, minRole: 'dispatcher' },
   { to: `${STAFF_ROOT}/members`, label: 'Staff', Icon: UserCog, minRole: 'admin' },
   { to: `${STAFF_ROOT}/places`, label: 'Places', Icon: MapPinned, minRole: 'admin' },
 ]
@@ -39,7 +41,7 @@ export default function StaffApp() {
         <Route element={<RequireStaff />}>
           <Route index element={<Page title="Queue" element={<Queue />} />} />
           <Route path="incidents/:id" element={<Page title="Incident" element={<Incident />} />} />
-          <Route path="teams" element={<Page title="Teams" minRole="supervisor" element={<Teams />} />} />
+          <Route path="teams" element={<Page title="Teams" element={<Teams />} />} />
           <Route path="members" element={<Page title="Staff" minRole="admin" element={<Members />} />} />
           <Route path="places" element={<Page title="Places" minRole="admin" element={<Places />} />} />
           <Route path="*" element={<Page title="Not found" element={<NotFoundPanel />} />} />
@@ -67,8 +69,7 @@ function RequireStaff() {
  */
 function Page({ title, element, minRole = 'dispatcher' }) {
   const { staff } = useStaff()
-  // A layout effect runs before the page's own effects, so a page can still set a
-  // more specific title (e.g. the incident's headline) and win.
+  // The route's title is the whole tab title: pages don't set their own.
   useLayoutEffect(() => {
     document.title = `${title} · InfraAlert staff`
   }, [title])
@@ -86,7 +87,7 @@ function StaffLayout() {
         Skip to content
       </a>
 
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col bg-ink text-white lg:flex">
+      <aside className="on-dark fixed inset-y-0 left-0 z-30 hidden w-60 flex-col bg-ink text-white lg:flex">
         <NavPanel />
       </aside>
 
@@ -174,50 +175,29 @@ function NavPanel({ header = <Brand />, onNavigate }) {
   )
 }
 
-const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])'
-
 function MobileTopBar() {
   const [open, setOpen] = useState(false)
   const menuButtonRef = useRef(/** @type {HTMLButtonElement | null} */ (null))
   const panelRef = useRef(/** @type {HTMLDivElement | null} */ (null))
-  const wasOpen = useRef(false)
   const { pathname } = useLocation()
 
   // Close on navigation.
   useEffect(() => setOpen(false), [pathname])
 
-  // Focus the panel on open; hand focus back to the menu button on close.
-  useEffect(() => {
-    if (open) {
-      panelRef.current?.querySelector('button')?.focus()
-    } else if (wasOpen.current) {
-      menuButtonRef.current?.focus()
-    }
-    wasOpen.current = open
-  }, [open])
-
-  const onKeyDown = (event) => {
-    if (event.key === 'Escape') {
+  // Focus the panel's first button (Close) on open; hand focus back to the menu button on close.
+  const onKeyDown = useFocusTrap(panelRef, {
+    active: open,
+    initialFocus: () => panelRef.current?.querySelector('button'),
+    restoreFocus: menuButtonRef,
+    wrapFromOutside: true,
+    onEscape: (event) => {
       event.stopPropagation()
       setOpen(false)
-      return
-    }
-    if (event.key !== 'Tab' || !panelRef.current) return
-    const focusable = [...panelRef.current.querySelectorAll(FOCUSABLE)]
-    if (!focusable.length) return
-    const first = focusable[0]
-    const last = focusable[focusable.length - 1]
-    if (event.shiftKey && (document.activeElement === first || !panelRef.current.contains(document.activeElement))) {
-      event.preventDefault()
-      last.focus()
-    } else if (!event.shiftKey && (document.activeElement === last || !panelRef.current.contains(document.activeElement))) {
-      event.preventDefault()
-      first.focus()
-    }
-  }
+    },
+  })
 
   return (
-    <header className="sticky top-0 z-30 bg-ink text-white lg:hidden">
+    <header className="on-dark sticky top-0 z-30 bg-ink text-white lg:hidden">
       <div className="flex h-14 items-center justify-between px-3">
         <Brand />
         <button

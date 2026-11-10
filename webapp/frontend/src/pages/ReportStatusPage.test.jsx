@@ -8,15 +8,18 @@ vi.mock('../api/client.js', async (importActual) => {
   return { ...actual, getReport: vi.fn() }
 })
 
-vi.mock('../components/TurnstileWidget.jsx', () => ({
-  default: () => <div data-testid="turnstile" />,
-}))
+vi.mock('../components/TurnstileWidget.jsx', async () => {
+  const { forwardRef, useImperativeHandle } = await import('react')
+  return {
+    // The real widget exposes reset() through a ref, which UpdatesSignup passes.
+    default: forwardRef(function StubTurnstile(_props, ref) {
+      useImperativeHandle(ref, () => ({ reset() {} }), [])
+      return <div data-testid="turnstile" />
+    }),
+  }
+})
 
-vi.mock('react-leaflet', () => ({
-  MapContainer: ({ children }) => <div data-testid="map">{children}</div>,
-  TileLayer: () => null,
-  Marker: () => <div data-testid="marker" />,
-}))
+vi.mock('react-leaflet', () => import('../test/leafletStandIn.jsx'))
 
 import { ApiError, getReport } from '../api/client.js'
 import ReportStatusPage, { POLL_INTERVAL_MS, formatSubmittedAt } from './ReportStatusPage.jsx'
@@ -118,6 +121,11 @@ describe('ReportStatusPage', () => {
     renderPage({ state: { justSubmitted: true } })
     expect(screen.getByRole('heading', { name: 'Report sent' })).toBeInTheDocument()
     expect(screen.getByText(/only way to follow/)).toBeInTheDocument()
+
+    // One yellow action per view: that is "Send confirmation email", so Copy link is a white plate.
+    expect(await screen.findByRole('button', { name: 'Send confirmation email' })).toHaveClass('btn-primary')
+    expect(screen.getByRole('button', { name: 'Copy link' })).toHaveClass('btn-secondary')
+    expect(document.querySelectorAll('.btn-primary')).toHaveLength(1)
 
     await user.click(screen.getByRole('button', { name: 'Copy link' }))
     expect(writeText).toHaveBeenCalledWith(window.location.href)

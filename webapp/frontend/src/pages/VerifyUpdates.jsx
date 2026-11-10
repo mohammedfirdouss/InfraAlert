@@ -7,8 +7,9 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { ArrowRight, Check, Loader2, MailX, RefreshCw, TriangleAlert } from 'lucide-react'
+import { ArrowRight, Check, Loader2, MailX } from 'lucide-react'
 import { ApiError, verifyUpdates } from '../api/client.js'
+import RetryableError from '../components/RetryableError.jsx'
 
 const ICON = { size: 18, strokeWidth: 2.25, 'aria-hidden': true }
 
@@ -77,9 +78,9 @@ export function useFragmentTokenCall(call) {
   }
 }
 
-/** A 400 means the token itself is bad; anything else is worth retrying. */
+/** A 400 means the token itself is bad, a 422 that the link is mangled; anything else is worth retrying. */
 export function isInvalidToken(error) {
-  return error instanceof ApiError && error.status === 400
+  return error instanceof ApiError && (error.status === 400 || error.status === 422)
 }
 
 /** Shared frame for the token pages: a centred plate in the ticket voice. */
@@ -93,30 +94,6 @@ export function Working({ label }) {
     <div role="status" className="flex flex-col items-center py-12 text-center">
       <Loader2 size={32} strokeWidth={2.25} className="animate-spin text-asphalt-500" aria-hidden="true" />
       <p className="mt-4 text-lg font-bold">{label}</p>
-    </div>
-  )
-}
-
-/** @param {{ onRetry: () => void, what: string }} props */
-export function RetryableError({ onRetry, what }) {
-  return (
-    <div
-      role="alert"
-      className="animate-rise-in rounded-xl border-2 border-hazard-500 bg-hazard-50 p-5 sm:p-6"
-    >
-      <div className="flex items-start gap-3">
-        <TriangleAlert {...ICON} size={22} className="mt-1 shrink-0 text-hazard-600" />
-        <div className="min-w-0">
-          <h1 className="text-xl font-black">We couldn&apos;t {what}</h1>
-          <p className="mt-1 text-asphalt-600">
-            Something went wrong on our side or with your connection. Please try again.
-          </p>
-          <button type="button" className="btn-secondary mt-4" onClick={onRetry}>
-            <RefreshCw {...ICON} />
-            Try again
-          </button>
-        </div>
-      </div>
     </div>
   )
 }
