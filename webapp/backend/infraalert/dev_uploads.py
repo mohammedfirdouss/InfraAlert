@@ -24,7 +24,7 @@ async def put_upload(object_name: str, request: Request) -> Response:
     storage = get_deps(request).storage
     assert isinstance(storage, LocalPhotoStorage)
 
-    if not UPLOAD_OBJECT_NAME.match(object_name):
+    if not UPLOAD_OBJECT_NAME.fullmatch(object_name):
         raise HTTPException(404)
     content_type = request.headers.get("content-type", "")
     if CONTENT_TYPE_EXTENSIONS.get(content_type) != object_name.rsplit(".", 1)[-1]:

@@ -7,14 +7,13 @@ from __future__ import annotations
 
 import logging
 import uuid
-from typing import Annotated, Literal
+from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from sqlalchemy.orm import Session
 
 from infraalert.captcha import CaptchaResult
-from infraalert.deps import Deps, get_deps, get_session
+from infraalert.deps import DepsDep, SessionDep
 from infraalert.notify import subscriptions
 from infraalert.notify.emails import verification_email
 from infraalert.notify.tokens import MAX_EMAIL_LENGTH, normalise_email
@@ -23,9 +22,6 @@ from infraalert.ratelimit import client_ip, submitter_key
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["citizen-updates"])
-
-DepsDep = Annotated[Deps, Depends(get_deps)]
-SessionDep = Annotated[Session, Depends(get_session)]
 
 
 class SubscribeRequest(BaseModel):
