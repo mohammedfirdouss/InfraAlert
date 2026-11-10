@@ -9,7 +9,7 @@ import { LogoMark } from '../../components/Logo.jsx'
 import { config } from '../../config.js'
 import { useStaff } from '../auth.jsx'
 
-export const DEV_ACCOUNTS = [
+const DEV_ACCOUNTS = [
   { email: 'dispatcher@dev.local', role: 'Dispatcher' },
   { email: 'supervisor@dev.local', role: 'Supervisor' },
   { email: 'admin@dev.local', role: 'Admin' },
@@ -97,7 +97,7 @@ export default function SignIn() {
             )}
           </section>
 
-          <p className="mt-6 text-center text-xs text-asphalt-400">
+          <p className="on-dark mt-6 text-center text-xs text-asphalt-400">
             Reporting a problem? You don&apos;t need an account:{' '}
             <a href="/" className="font-bold text-white underline decoration-signal-400 decoration-2 underline-offset-4">
               report an issue

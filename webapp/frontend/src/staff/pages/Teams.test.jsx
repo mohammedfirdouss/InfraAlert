@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { ApiError } from '../../api/client.js'
 
-vi.mock('react-leaflet', () => import('../admin/leafletStandIn.jsx'))
+vi.mock('react-leaflet', () => import('../../test/leafletStandIn.jsx'))
 vi.mock('../../map.js', () => ({
   tileLayer: { url: 'tiles/{z}/{x}/{y}.png', attribution: 'test' },
   markerIcon: {},

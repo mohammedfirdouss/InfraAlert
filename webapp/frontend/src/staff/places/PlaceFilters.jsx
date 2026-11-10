@@ -25,7 +25,7 @@ function Segmented({ label, options, value, onChange }) {
           type="button"
           aria-pressed={value === option.value}
           onClick={() => onChange(option.value)}
-          className={`min-h-[40px] border-l-2 border-ink px-3 text-[13px] font-bold first:border-l-0 ${
+          className={`min-h-[44px] border-l-2 border-ink px-3 text-[13px] font-bold first:border-l-0 ${
             value === option.value ? 'bg-ink text-signal-300' : 'bg-white text-ink hover:bg-concrete-100'
           }`}
         >

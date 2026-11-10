@@ -4,31 +4,11 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 vi.mock('../api.js', () => ({ getQueue: vi.fn() }))
 
-const leaflet = vi.hoisted(() => ({
-  map: {
-    fitBounds: () => {},
-    setView: () => {},
-    invalidateSize: () => {},
-    getSize: () => ({ x: 800, y: 600 }),
-  },
-}))
-
-vi.mock('react-leaflet', () => ({
-  MapContainer: ({ children }) => <div data-testid="map">{children}</div>,
-  TileLayer: () => null,
-  CircleMarker: ({ center, pathOptions, eventHandlers, interactive }) => (
-    <button
-      type="button"
-      data-testid={interactive === false ? 'pin-ring' : 'pin'}
-      data-center={center.join(',')}
-      data-fill={pathOptions.fillColor}
-      onClick={() => eventHandlers?.click?.()}
-    />
-  ),
-  useMap: () => leaflet.map,
-}))
+// Pins are the stand-in's "map-feature" buttons; the selected pin's ring is a "map-highlight".
+vi.mock('react-leaflet', () => import('../../test/leafletStandIn.jsx'))
 
 import { ApiError } from '../../api/client.js'
+import { fakeMap } from '../../test/leafletStandIn.jsx'
 import { getQueue } from '../api.js'
 import { REFRESH_INTERVAL_MS } from '../queue/useQueueData.js'
 import Queue from './Queue.jsx'
@@ -144,8 +124,8 @@ beforeEach(() => {
   mockQueue()
   visibility = 'visible'
   Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => visibility })
-  leaflet.map.fitBounds = vi.fn()
-  leaflet.map.setView = vi.fn()
+  fakeMap.fitBounds.mockClear()
+  fakeMap.setView.mockClear()
   Element.prototype.scrollIntoView = vi.fn()
 })
 
@@ -370,7 +350,7 @@ describe('refresh', () => {
     await flush()
     const map = screen.getByTestId('map')
     const firstRow = rows()[0]
-    expect(leaflet.map.fitBounds).toHaveBeenCalledTimes(1)
+    expect(fakeMap.fitBounds).toHaveBeenCalledTimes(1)
 
     let resolveOpen
     getQueue.mockImplementation((tab) =>
@@ -388,7 +368,7 @@ describe('refresh', () => {
     expect(rows()).toHaveLength(4)
     expect(rows()[0]).toBe(firstRow) // same DOM node: not re-mounted
     expect(screen.getByTestId('map')).toBe(map)
-    expect(leaflet.map.fitBounds).toHaveBeenCalledTimes(1)
+    expect(fakeMap.fitBounds).toHaveBeenCalledTimes(1)
   })
 
   test('a failed refresh keeps the old list and says so', async () => {
@@ -403,10 +383,10 @@ describe('refresh', () => {
   test('changing the filter refits the map', async () => {
     renderQueue()
     await flush()
-    expect(leaflet.map.fitBounds).toHaveBeenCalledTimes(1)
+    expect(fakeMap.fitBounds).toHaveBeenCalledTimes(1)
     fireEvent.change(screen.getByLabelText('Issue type'), { target: { value: 'pothole' } })
     await flush()
-    expect(leaflet.map.fitBounds).toHaveBeenCalledTimes(2)
+    expect(fakeMap.fitBounds).toHaveBeenCalledTimes(2)
   })
 })
 
@@ -414,27 +394,27 @@ describe('map and selection', () => {
   test('pins are severity coloured; hovering a row highlights its pin', async () => {
     renderQueue()
     await flush()
-    const pins = screen.getAllByTestId('pin')
-    expect(pins.map((p) => p.dataset.fill)).toEqual(['#ff5a1f', '#ffd60a', '#e7e2d6'])
-    expect(screen.queryByTestId('pin-ring')).not.toBeInTheDocument()
+    const pins = screen.getAllByTestId('map-feature')
+    expect(pins.map((p) => p.dataset.colour)).toEqual(['#ff5a1f', '#ffd60a', '#e7e2d6'])
+    expect(screen.queryByTestId('map-highlight')).not.toBeInTheDocument()
 
     fireEvent.mouseEnter(rows()[1])
-    expect(screen.getByTestId('pin-ring')).toHaveAttribute('data-center', '-1.3,36.8')
+    expect(screen.getByTestId('map-highlight')).toHaveAttribute('data-center', '-1.3,36.8')
     fireEvent.mouseLeave(rows()[1])
-    expect(screen.queryByTestId('pin-ring')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('map-highlight')).not.toBeInTheDocument()
 
     fireEvent.focus(rows()[2])
-    expect(screen.getByTestId('pin-ring')).toHaveAttribute('data-center', '-1.29,36.83')
+    expect(screen.getByTestId('map-highlight')).toHaveAttribute('data-center', '-1.29,36.83')
   })
 
   test('clicking a pin selects and scrolls to its row', async () => {
     renderQueue()
     await flush()
-    fireEvent.click(screen.getAllByTestId('pin')[2])
+    fireEvent.click(screen.getAllByTestId('map-feature')[2])
     expect(rows()[2]).toHaveAttribute('data-selected', 'true')
     expect(rows()[0]).not.toHaveAttribute('data-selected')
     expect(Element.prototype.scrollIntoView).toHaveBeenCalled()
-    expect(screen.getByTestId('pin-ring')).toHaveAttribute('data-center', '-1.29,36.83')
+    expect(screen.getByTestId('map-highlight')).toHaveAttribute('data-center', '-1.29,36.83')
 
     // Selection survives a refresh.
     await advance(REFRESH_INTERVAL_MS)
@@ -464,7 +444,7 @@ describe('map and selection', () => {
     expect(mapPane).not.toHaveClass('hidden')
 
     // Picking a pin goes back to the list, at that row.
-    fireEvent.click(screen.getAllByTestId('pin')[1])
+    fireEvent.click(screen.getAllByTestId('map-feature')[1])
     expect(listButton).toHaveAttribute('aria-pressed', 'true')
     expect(listPane).not.toHaveClass('hidden')
     expect(rows()[1]).toHaveAttribute('data-selected', 'true')

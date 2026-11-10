@@ -7,11 +7,12 @@ import { Link } from 'react-router-dom'
 import { Pencil, Plus, TriangleAlert, X } from 'lucide-react'
 import { getTeams } from '../api.js'
 import { useStaff } from '../auth.jsx'
-import { hasRole } from '../ui.jsx'
+import { formatLatLng } from '../../format.js'
+import { describeError, hasRole, incidentRef } from '../ui.jsx'
 import TeamPanel from '../admin/TeamPanel.jsx'
 import TeamsMap from '../admin/TeamsMap.jsx'
-import { SkillChips, TeamStatus, formatLatLng, incidentRef } from '../admin/TeamBits.jsx'
-import { EmptyState, LoadError, SkeletonRows, Toasts, describeError, useToasts } from '../admin/feedback.jsx'
+import { SkillChips, TeamStatus } from '../admin/TeamBits.jsx'
+import { EmptyState, LoadError, SkeletonRows, Toasts, useToasts } from '../admin/feedback.jsx'
 
 const COLS = 'md:grid md:grid-cols-[minmax(9rem,1.1fr)_minmax(10rem,2fr)_minmax(7rem,1fr)_9.5rem_5.5rem] md:items-center md:gap-3'
 
@@ -83,7 +84,7 @@ export default function Teams() {
             <strong>{busyWarning.name}</strong> is now inactive but is still working on{' '}
             <Link
               to={`/staff/incidents/${busyWarning.busy_with_incident_id}`}
-              className="font-mono font-bold underline decoration-signal-600 underline-offset-2"
+              className="font-mono font-semibold underline decoration-signal-600 underline-offset-2"
             >
               {incidentRef(busyWarning.busy_with_incident_id)}
             </Link>
