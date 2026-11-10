@@ -276,7 +276,8 @@ function AddressSearch({ getBias, onChoose }) {
   }, [query])
 
   function choose(place) {
-    skipNextSearchRef.current = true
+    // Only when the text will change: otherwise the search effect doesn't run to clear the flag.
+    skipNextSearchRef.current = place.label !== query
     setQuery(place.label)
     setResults([])
     setOpen(false)

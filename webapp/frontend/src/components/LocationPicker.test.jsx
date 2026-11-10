@@ -8,40 +8,11 @@ const mocks = vi.hoisted(() => ({
   searchEnabled: true,
   searchAddress: null,
   reverseGeocode: null,
-  mapClick: null,
-  setView: null,
 }))
 
-// jsdom can't render Leaflet: replace react-leaflet with minimal stand-ins that
-// expose a "click the map" and a "drag the pin" affordance.
-vi.mock('react-leaflet', () => ({
-  MapContainer: ({ children }) => (
-    <div data-testid="map">
-      <button type="button" onClick={() => mocks.mapClick?.({ latlng: { lat: -1.3, lng: 36.8 } })}>
-        simulate map click
-      </button>
-      {children}
-    </div>
-  ),
-  TileLayer: () => null,
-  Marker: ({ position, eventHandlers }) => (
-    <button
-      type="button"
-      data-testid="marker"
-      data-position={position.join(',')}
-      onClick={() =>
-        eventHandlers.dragend({ target: { getLatLng: () => ({ lat: -1.31, lng: 36.81 }) } })
-      }
-    >
-      simulate marker drag
-    </button>
-  ),
-  useMap: () => ({ setView: mocks.setView, getCenter: () => ({ lat: -1.29, lng: 36.82 }) }),
-  useMapEvents: (handlers) => {
-    mocks.mapClick = handlers.click
-    return null
-  },
-}))
+// jsdom can't render Leaflet: the shared stand-ins expose a "click the map"
+// and a "drag the pin" affordance.
+vi.mock('react-leaflet', () => import('../test/leafletStandIn.jsx'))
 
 vi.mock('../map.js', () => ({
   tileLayer: { url: 'tiles/{z}/{x}/{y}.png', attribution: 'test' },
@@ -53,6 +24,7 @@ vi.mock('../map.js', () => ({
   reverseGeocode: (...args) => mocks.reverseGeocode(...args),
 }))
 
+import { CLICK_POINT, DRAG_POINT, MAP_CENTRE, fakeMap } from '../test/leafletStandIn.jsx'
 import LocationPicker from './LocationPicker.jsx'
 
 /** Renders the picker as a controlled component, like ReportForm does. */
@@ -98,8 +70,7 @@ beforeEach(() => {
   mocks.searchEnabled = true
   mocks.searchAddress = vi.fn().mockResolvedValue([])
   mocks.reverseGeocode = vi.fn().mockResolvedValue('Kenyatta Avenue, Nairobi')
-  mocks.setView = vi.fn()
-  mocks.mapClick = null
+  fakeMap.setView.mockClear()
   mockGeolocation(() => {})
 })
 
@@ -115,8 +86,8 @@ describe('LocationPicker', () => {
 
     await user.click(screen.getByRole('button', { name: /simulate map click/i }))
 
-    expect(screen.getByText('-1.30000')).toBeInTheDocument()
-    expect(screen.getByText('36.80000')).toBeInTheDocument()
+    expect(screen.getByText('-1.25000')).toBeInTheDocument()
+    expect(screen.getByText('36.75000')).toBeInTheDocument()
     expect(screen.queryByText(/tap the map to drop a pin/i)).not.toBeInTheDocument()
   })
 
@@ -125,10 +96,10 @@ describe('LocationPicker', () => {
 
     await user.click(screen.getByRole('button', { name: /simulate map click/i }))
 
-    expect(onChange).toHaveBeenCalledWith({ lat: -1.3, lng: 36.8 })
-    expect(screen.getByTestId('marker')).toHaveAttribute('data-position', '-1.3,36.8')
+    expect(onChange).toHaveBeenCalledWith(CLICK_POINT)
+    expect(screen.getByTestId('marker')).toHaveAttribute('data-position', `${CLICK_POINT.lat},${CLICK_POINT.lng}`)
     await waitFor(() => expect(onAddressChange).toHaveBeenCalledWith('Kenyatta Avenue, Nairobi'))
-    expect(mocks.reverseGeocode).toHaveBeenCalledWith({ lat: -1.3, lng: 36.8 }, expect.anything())
+    expect(mocks.reverseGeocode).toHaveBeenCalledWith(CLICK_POINT, expect.anything())
   })
 
   it('reports a null address when reverse geocoding finds nothing', async () => {
@@ -144,17 +115,14 @@ describe('LocationPicker', () => {
     const { user, onChange, onAddressChange } = renderPicker()
     await user.click(screen.getByRole('button', { name: /simulate map click/i }))
 
-    await user.click(screen.getByTestId('marker'))
+    await user.click(screen.getByRole('button', { name: /simulate marker drag/i }))
 
-    expect(onChange).toHaveBeenLastCalledWith({ lat: -1.31, lng: 36.81 })
-    expect(screen.getByText('-1.31000')).toBeInTheDocument()
-    expect(screen.getByText('36.81000')).toBeInTheDocument()
-    expect(mocks.reverseGeocode).toHaveBeenLastCalledWith(
-      { lat: -1.31, lng: 36.81 },
-      expect.anything(),
-    )
+    expect(onChange).toHaveBeenLastCalledWith(DRAG_POINT)
+    expect(screen.getByText('-1.26000')).toBeInTheDocument()
+    expect(screen.getByText('36.76000')).toBeInTheDocument()
+    expect(mocks.reverseGeocode).toHaveBeenLastCalledWith( DRAG_POINT, expect.anything())
     await waitFor(() => expect(onAddressChange).toHaveBeenCalledTimes(2))
-    expect(mocks.setView).not.toHaveBeenCalled()
+    expect(fakeMap.setView).not.toHaveBeenCalled()
   })
 
   it('ignores the address of a point the citizen has already moved away from', async () => {
@@ -165,7 +133,7 @@ describe('LocationPicker', () => {
     const { user, onAddressChange } = renderPicker()
 
     await user.click(screen.getByRole('button', { name: /simulate map click/i }))
-    await user.click(screen.getByTestId('marker'))
+    await user.click(screen.getByRole('button', { name: /simulate marker drag/i }))
     await waitFor(() => expect(onAddressChange).toHaveBeenCalledWith('Second place'))
     first.resolve('First place')
     await first.promise
@@ -187,7 +155,7 @@ describe('LocationPicker', () => {
       expect.objectContaining({ enableHighAccuracy: true }),
     )
     expect(onChange).toHaveBeenCalledWith({ lat: -1.28, lng: 36.83 })
-    expect(mocks.setView).toHaveBeenCalledWith([-1.28, 36.83], 17)
+    expect(fakeMap.setView).toHaveBeenCalledWith([-1.28, 36.83], 17)
     await waitFor(() => expect(onAddressChange).toHaveBeenCalledWith('Kenyatta Avenue, Nairobi'))
   })
 
@@ -236,16 +204,12 @@ describe('LocationPicker', () => {
     await user.type(screen.getByRole('combobox', { name: /search for an address/i }), 'Moi')
     const option = await screen.findByRole('option', { name: 'Moi Avenue, Nairobi' })
     expect(mocks.searchAddress).toHaveBeenCalledTimes(1)
-    expect(mocks.searchAddress).toHaveBeenCalledWith(
-      'Moi',
-      { lat: -1.29, lng: 36.82 },
-      expect.anything(),
-    )
+    expect(mocks.searchAddress).toHaveBeenCalledWith('Moi', MAP_CENTRE, expect.anything())
     await user.click(option)
 
     expect(onChange).toHaveBeenCalledWith({ lat: -1.283, lng: 36.826 })
     expect(onAddressChange).toHaveBeenCalledWith('Moi Avenue, Nairobi')
-    expect(mocks.setView).toHaveBeenCalledWith([-1.283, 36.826], 17)
+    expect(fakeMap.setView).toHaveBeenCalledWith([-1.283, 36.826], 17)
     expect(mocks.reverseGeocode).not.toHaveBeenCalled()
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
   })

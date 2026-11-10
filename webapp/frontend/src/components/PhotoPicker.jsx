@@ -353,7 +353,8 @@ function PhotoTile({ tile, index, disabled, onRemove, onRetry }) {
             type="button"
             onClick={onRetry}
             disabled={disabled}
-            className="btn-secondary min-h-[36px] px-2.5 py-1 text-xs"
+            // The plate stays small to fit the tile; the ::after widens the hit area to 44px.
+            className="btn-secondary relative min-h-[36px] px-2.5 py-1 text-xs after:absolute after:-inset-1.5 after:content-['']"
             aria-label={`Retry ${label.toLowerCase()}`}
           >
             <RotateCw size={14} strokeWidth={2.5} aria-hidden="true" />
@@ -367,7 +368,8 @@ function PhotoTile({ tile, index, disabled, onRemove, onRetry }) {
         onClick={onRemove}
         disabled={disabled}
         aria-label={`Remove ${label.toLowerCase()}`}
-        className="absolute right-1 top-1 flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-ink text-white transition-transform hover:scale-105 disabled:opacity-45"
+        // 36px disc, 44px hit area (the ::after reaches the tile's corner).
+        className="absolute right-1 top-1 flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-ink text-white transition-transform hover:scale-105 disabled:opacity-45 after:absolute after:-inset-1.5 after:content-['']"
       >
         <X size={16} strokeWidth={2.75} aria-hidden="true" />
       </button>

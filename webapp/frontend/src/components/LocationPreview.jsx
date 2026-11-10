@@ -1,4 +1,5 @@
 import { MapContainer, Marker, TileLayer } from 'react-leaflet'
+import { formatLatLng } from '../format.js'
 import { markerIcon, tileLayer } from '../map.js'
 
 /** "6.52441° N" style surveyor reading for one axis. */
@@ -17,7 +18,7 @@ export default function LocationPreview({ location }) {
   return (
     <div
       role="img"
-      aria-label={`Map showing the reported location at ${location.lat.toFixed(5)}, ${location.lng.toFixed(5)}`}
+      aria-label={`Map showing the reported location at ${formatLatLng(location)}`}
       className="relative h-56 w-full overflow-hidden rounded-xl border-2 border-ink bg-concrete-200"
     >
       <MapContainer
