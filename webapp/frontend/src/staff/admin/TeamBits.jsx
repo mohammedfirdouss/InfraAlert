@@ -2,15 +2,7 @@
  * Small display pieces for teams: status, skill chips and the base readout.
  */
 import { Link } from 'react-router-dom'
-import { IssueTypeLabel } from '../ui.jsx'
-
-/** Short, readable incident reference, e.g. "INC 3F2A9C01". */
-import { incidentRef } from '../ui.jsx'
-
-export { incidentRef }
-
-/** @param {{ lat: number, lng: number }} point */
-export const formatLatLng = (point) => `${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}`
+import { IssueTypeLabel, incidentRef } from '../ui.jsx'
 
 /**
  * Available (no open assignment), On INC xxxx (links to it), Inactive.

@@ -2,16 +2,15 @@
  * Create or edit a team, in a side drawer (full screen on phones).
  * Edits send only the fields that changed (the API is a partial update).
  */
-import { useEffect, useId, useRef, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { Loader2, X } from 'lucide-react'
 import { createTeam, updateTeam } from '../api.js'
-import { ISSUE_TYPES } from '../ui.jsx'
+import { ISSUE_TYPES, Switch, describeError } from '../ui.jsx'
+import { useFocusTrap } from '../useFocusTrap.js'
 import BaseLocationPicker from './BaseLocationPicker.jsx'
-import { InlineError, describeError } from './feedback.jsx'
+import { InlineError } from './feedback.jsx'
 
 const NAME_MAX = 100
-const FOCUSABLE =
-  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
 /** @param {import('../api.js').Team | null} team */
 function initialForm(team) {
@@ -52,13 +51,15 @@ export default function TeamPanel({ team, onClose, onSaved }) {
   const [saving, setSaving] = useState(false)
   const editing = Boolean(team)
 
-  useEffect(() => {
-    const opener = document.activeElement
-    nameRef.current?.focus()
-    return () => {
-      if (opener instanceof HTMLElement) opener.focus()
-    }
-  }, [])
+  // Focus starts on the name; Escape closes (not mid-save); Tab stays inside the drawer.
+  const handleKeyDown = useFocusTrap(panelRef, {
+    initialFocus: nameRef,
+    onEscape: (event) => {
+      if (saving) return
+      event.stopPropagation()
+      onClose()
+    },
+  })
 
   function set(field, value) {
     setForm((f) => ({ ...f, [field]: value }))
@@ -70,27 +71,6 @@ export default function TeamPanel({ team, onClose, onSaved }) {
       'skills',
       form.skills.includes(value) ? form.skills.filter((s) => s !== value) : [...form.skills, value],
     )
-  }
-
-  /** Escape closes; Tab stays inside the drawer while it's open. */
-  function handleKeyDown(event) {
-    if (event.key === 'Escape' && !saving) {
-      event.stopPropagation()
-      onClose()
-      return
-    }
-    if (event.key !== 'Tab') return
-    const items = [...panelRef.current.querySelectorAll(FOCUSABLE)]
-    if (!items.length) return
-    const first = items[0]
-    const last = items[items.length - 1]
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault()
-      last.focus()
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault()
-      first.focus()
-    }
   }
 
   function changes() {
@@ -242,17 +222,7 @@ export default function TeamPanel({ team, onClose, onSaved }) {
                     Inactive teams are never suggested or assigned.
                   </span>
                 </span>
-                <input
-                  type="checkbox"
-                  role="switch"
-                  className="peer sr-only"
-                  checked={form.active}
-                  onChange={(e) => set('active', e.target.checked)}
-                />
-                <span
-                  aria-hidden="true"
-                  className="relative h-6 w-11 shrink-0 rounded-full border-2 border-ink bg-concrete-200 transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-ink after:transition-transform peer-checked:bg-signal-400 peer-checked:after:translate-x-5 peer-focus-visible:outline peer-focus-visible:outline-[3px] peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink"
-                />
+                <Switch checked={form.active} onChange={(active) => set('active', active)} />
               </label>
             </div>
 

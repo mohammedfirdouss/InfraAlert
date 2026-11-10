@@ -1,5 +1,5 @@
 /**
- * Small map for choosing a team's base: click to place, drag to adjust, or
+ * Small map for choosing a point (a team's base, a place's location): click to place, drag to adjust, or
  * (from the keyboard) pan the map and place the pin at its centre.
  */
 import { useRef } from 'react'
@@ -27,9 +27,16 @@ const round = (n) => Math.round(n * 1e6) / 1e6
  *   onChange: (point: { lat: number, lng: number }) => void,
  *   invalid?: boolean,
  *   describedBy?: string,
+ *   noun?: string,
  * }} props
  */
-export default function BaseLocationPicker({ value, onChange, invalid = false, describedBy }) {
+export default function BaseLocationPicker({
+  value,
+  onChange,
+  invalid = false,
+  describedBy,
+  noun = 'base',
+}) {
   const mapRef = useRef(null)
   const pick = (point) => onChange({ lat: round(point.lat), lng: round(point.lng) })
   const start = value ?? config.mapDefaultCenter
@@ -77,7 +84,7 @@ export default function BaseLocationPicker({ value, onChange, invalid = false, d
               <span>{value.lng.toFixed(5)}</span>
             </>
           ) : (
-            <span className="text-asphalt-400">No base set</span>
+            <span className="text-asphalt-400">No {noun} set</span>
           )}
         </p>
         <button type="button" className="btn-ghost text-sm" onClick={placeAtCentre}>
@@ -85,7 +92,7 @@ export default function BaseLocationPicker({ value, onChange, invalid = false, d
           Place at map centre
         </button>
       </div>
-      <p className="hint">Click the map to set the base, then drag the pin to adjust.</p>
+      <p className="hint">Click the map to set the {noun}, then drag the pin to adjust.</p>
     </div>
   )
 }

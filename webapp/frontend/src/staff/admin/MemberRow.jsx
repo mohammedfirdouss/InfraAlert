@@ -5,14 +5,13 @@
 import { useId, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { updateMember } from '../api.js'
-import { ROLE_LABELS, formatDateTime } from '../ui.jsx'
-import { InlineError, describeError } from './feedback.jsx'
+import { ROLE_LABELS, describeError, formatDateTime } from '../ui.jsx'
+import { InlineError } from './feedback.jsx'
 
-export const MEMBER_ERRORS = {
+const MEMBER_ERRORS = {
   last_admin:
     'This is the last active admin. Make someone else an admin first, so someone can still manage staff.',
   cannot_change_own_access: "You can't lower your own role or remove your own access. Ask another admin.",
-  already_staff: 'This email already belongs to someone on the staff list.',
   staff_not_found: 'This person is no longer on the staff list. Reload the page.',
 }
 
@@ -97,7 +96,7 @@ export default function MemberRow({ member, isSelf, onUpdated }) {
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                className="btn-danger min-h-[40px] px-3 text-sm"
+                className="btn-danger px-3 text-sm"
                 disabled={pending !== null}
                 onClick={() => setActive(false)}
               >
@@ -106,7 +105,7 @@ export default function MemberRow({ member, isSelf, onUpdated }) {
               </button>
               <button
                 type="button"
-                className="btn-secondary min-h-[40px] px-3 text-sm"
+                className="btn-secondary px-3 text-sm"
                 disabled={pending !== null}
                 onClick={() => setConfirming(false)}
               >

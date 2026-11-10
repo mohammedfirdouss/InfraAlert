@@ -5,13 +5,13 @@
 import { useId, useRef, useState } from 'react'
 import { Loader2, UserPlus } from 'lucide-react'
 import { inviteMember } from '../api.js'
-import { ROLE_LABELS } from '../ui.jsx'
-import { InlineError, describeError } from './feedback.jsx'
+import { ROLE_LABELS, describeError } from '../ui.jsx'
+import { InlineError } from './feedback.jsx'
 
 // Deliberately loose, like the backend: the identity provider is the real check.
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 
-export const FIRST_SIGN_IN_NOTE =
+const FIRST_SIGN_IN_NOTE =
   "They'll get access the first time they sign in with this email through the city account."
 
 /** @param {{ onInvited: (member: import('../api.js').Member) => void }} props */
