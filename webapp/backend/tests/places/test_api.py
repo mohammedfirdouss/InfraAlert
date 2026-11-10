@@ -5,14 +5,16 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from geoalchemy2 import Geometry
+from sqlalchemy import delete, func, select
 
-from infraalert.db.models import AuditLog, PlaceSource, SensitivePlace, StaffRole
+from infraalert.db.models import AuditLog, Incident, PlaceSource, SensitivePlace, StaffRole
 from infraalert.deps import Deps
 from infraalert.places import osm
 from infraalert.processing.priority import PLACE_WEIGHTS
 from tests.places.conftest import BBOX, FakeOverpass
 from tests.staff.conftest import StaffFactory, auth
+from tests.staff.test_dispatch import make_incident
 
 HOSPITAL = {
     "name": "Field Hospital",
@@ -193,3 +195,47 @@ def test_disable_and_enable_an_osm_place_survives_reimport(
         {"enabled": {"from": False, "to": True}, "osm_id": "node/1"},
     ]
     assert all(e.action == "place.updated" for e in entries)
+
+
+def _nearby_categories(deps: Deps, incident_id: uuid.UUID) -> list[str]:
+    with deps.sessions() as session:
+        inputs = session.get_one(Incident, incident_id).priority_inputs or {}
+    return [place["category"] for place in inputs.get("nearby_places", [])]
+
+
+def test_changing_places_rescores_open_incidents(
+    client: TestClient, admin: dict[str, str], deps: Deps
+) -> None:
+    incident = make_incident(deps, where=(HOSPITAL["location"]["lng"], HOSPITAL["location"]["lat"]))
+    with deps.sessions() as session:
+        before = session.get_one(Incident, incident).priority_score
+
+    place = _create(client, admin)
+    assert _nearby_categories(deps, incident) == ["hospital"]
+    with deps.sessions() as session:
+        assert session.get_one(Incident, incident).priority_score != before
+
+    resp = client.patch(f"/api/staff/places/{place['id']}", json={"enabled": False}, headers=admin)
+    assert resp.status_code == 200, resp.text
+    assert _nearby_categories(deps, incident) == []
+
+
+def test_an_import_rescores_open_incidents(deps: Deps, overpass: FakeOverpass) -> None:
+    with deps.sessions() as session:
+        osm.import_osm(session, overpass.client(), BBOX)
+        lng, lat = session.execute(
+            select(
+                func.ST_X(SensitivePlace.geom.cast(Geometry)),
+                func.ST_Y(SensitivePlace.geom.cast(Geometry)),
+            )
+            .where(func.GeometryType(SensitivePlace.geom.cast(Geometry)) == "POINT")
+            .limit(1)
+        ).one()
+        session.execute(delete(SensitivePlace))
+        session.commit()
+    incident = make_incident(deps, where=(lng, lat))
+
+    with deps.sessions() as session:
+        osm.import_osm(session, overpass.client(), BBOX)
+
+    assert _nearby_categories(deps, incident)

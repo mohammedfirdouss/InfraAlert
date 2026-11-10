@@ -7,14 +7,14 @@ from datetime import timedelta
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from infraalert.app import create_app
 from infraalert.captcha import CaptchaResult
 from infraalert.config import Settings
-from infraalert.db.models import Report
-from infraalert.deps import Deps
+from infraalert.db.models import AuditLog, Report, ReportProcessing
+from infraalert.deps import Deps, _resume_unprocessed
 from infraalert.processing.extraction import ExtractionUnavailable
 from infraalert.processing.worker import Processor
 from infraalert.storage import LocalPhotoStorage
@@ -141,6 +141,45 @@ def test_sweep_requeues_only_reports_stuck_in_received(
 
     resp = client.post("/tasks/sweep", headers=AUTH)
 
-    assert resp.json() == {"enqueued": 1}
+    assert resp.json() == {"enqueued": 1, "gave_up": 0}
     assert deps.tasks.enqueued == [stuck]  # type: ignore[attr-defined]
     assert fresh not in deps.tasks.enqueued  # type: ignore[attr-defined]
+
+
+def test_sweep_sends_a_report_that_keeps_failing_to_triage(
+    client: TestClient,
+    deps: Deps,
+    sessions: sessionmaker[Session],
+    submit: Callable[..., uuid.UUID],
+    extractor: FakeExtractor,
+) -> None:
+    hopeless = submit(photos=1)
+    with sessions() as session:
+        session.get_one(Report, hopeless).submitted_at = func.now() - timedelta(hours=2)
+        session.commit()
+
+    resp = client.post("/tasks/sweep", headers=AUTH)
+
+    assert resp.json() == {"enqueued": 0, "gave_up": 1}
+    assert deps.tasks.enqueued == []  # type: ignore[attr-defined]
+    assert extractor.calls == []  # the model is not tried again
+    with sessions() as session:
+        report = session.get_one(Report, hopeless)
+        assert report.processing is ReportProcessing.NEEDS_TRIAGE and report.incident_id
+        assert [p.object_name.split("/")[0] for p in report.photos] == ["reports"]
+        detail = session.scalar(select(AuditLog.detail).where(AuditLog.entity_id == hopeless))
+        assert detail["extraction_error"].startswith("gave up")
+    # Nothing is left for the next sweep.
+    assert client.post("/tasks/sweep", headers=AUTH).json() == {"enqueued": 0, "gave_up": 0}
+
+
+def test_the_inline_queue_resumes_reports_left_unprocessed(
+    deps: Deps, sessions: sessionmaker[Session], submit: Callable[..., uuid.UUID]
+) -> None:
+    waiting, done = submit(), submit()
+    deps.processor.process(done)  # type: ignore[union-attr]
+    queue = RecordingQueue()
+
+    _resume_unprocessed(sessions, queue)
+
+    assert queue.enqueued == [waiting]

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 import urllib.parse
 from collections.abc import Iterator
 
@@ -170,3 +173,14 @@ def test_retention_runs_once_and_reports_counts(
     assert cli.main(["retention"]) == 0
     out = capsys.readouterr().out
     assert "submitter keys cleared:" in out and "contacts deleted:" in out
+
+
+@pytest.mark.parametrize("command", ["seed-dev", "import-osm", "retention"])
+def test_every_command_is_defined_when_run_as_a_script(command: str) -> None:
+    """`python -m infraalert.cli` runs main() at import time: nothing may be defined after it."""
+    env = {k: v for k, v in os.environ.items() if k not in ("DATABASE_URL", "STAFF_AUTH_BACKEND")}
+    result = subprocess.run(
+        [sys.executable, "-m", "infraalert.cli", command], env=env, capture_output=True, text=True
+    )
+    # It gets as far as needing the database, which this test doesn't give it.
+    assert "DATABASE_URL is not set" in result.stderr, result.stderr

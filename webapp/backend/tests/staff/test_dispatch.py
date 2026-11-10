@@ -447,3 +447,45 @@ def test_every_action_is_attributed_in_the_audit_log(
         ).all()
     assert [a for a, _ in rows] == ["incident.triaged", "incident.closed_invalid"]
     assert all(staff_id is not None for _, staff_id in rows)
+
+
+def suggested(client: TestClient, headers: dict[str, str], incident_id: uuid.UUID) -> str | None:
+    team = get(client, headers, incident_id)["incident"]["item"]["suggested_team"]
+    return team["name"] if team else None
+
+
+def test_taking_or_freeing_a_team_refreshes_other_suggestions(
+    client: TestClient, deps: Deps, dispatcher: dict[str, str]
+) -> None:
+    near = make_team(deps, "Roads Near", [IssueType.POTHOLE], HERE)
+    make_team(deps, "Roads Far", [IssueType.POTHOLE], FAR)
+    make_team(deps, "Water", [IssueType.WATER_LEAK], HERE)
+    first = make_incident(deps, suggested_team_id=near)
+    waiting = make_incident(deps, where=NEAR, suggested_team_id=near)
+
+    assert act(client, dispatcher, first, "assign", {"team_id": str(near)}).status_code == 204
+    # The near team is on a job now: it must not stay the suggestion elsewhere.
+    assert suggested(client, dispatcher, waiting) == "Roads Far"
+
+    assert act(client, dispatcher, first, "resolve", {}).status_code == 204
+    assert suggested(client, dispatcher, waiting) == "Roads Near"
+
+
+def test_editing_a_team_refreshes_suggestions(
+    client: TestClient, deps: Deps, staff: StaffFactory, dispatcher: dict[str, str]
+) -> None:
+    supervisor = auth(staff(StaffRole.SUPERVISOR).email)
+    near = make_team(deps, "Roads Near", [IssueType.POTHOLE], HERE)
+    waiting = make_incident(deps, suggested_team_id=near)
+
+    resp = client.patch(f"/api/staff/teams/{near}", json={"active": False}, headers=supervisor)
+    assert resp.status_code == 200, resp.text
+    assert suggested(client, dispatcher, waiting) is None
+
+    body = {
+        "name": "Roads New",
+        "skills": ["pothole"],
+        "base_location": {"lat": HERE[1], "lng": HERE[0]},
+    }
+    assert client.post("/api/staff/teams", json=body, headers=supervisor).status_code == 201
+    assert suggested(client, dispatcher, waiting) == "Roads New"
