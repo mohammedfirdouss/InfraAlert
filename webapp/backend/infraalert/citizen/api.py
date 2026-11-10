@@ -3,18 +3,18 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
 
 from infraalert.captcha import CaptchaResult
 from infraalert.citizen.service import NewReport, create_report, get_report_view
 from infraalert.citizen.status import ReportStatus
 from infraalert.db.models import IssueType
-from infraalert.deps import Deps, get_deps, get_session
+from infraalert.deps import DepsDep, SessionDep
+from infraalert.geo import Location
 from infraalert.ratelimit import client_ip, over_limit, submitter_key
 from infraalert.storage import UPLOAD_OBJECT_NAME, new_upload_object_name
 
@@ -23,14 +23,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["citizen"])
 
 MAX_PHOTOS_PER_REPORT = 3
-
-DepsDep = Annotated[Deps, Depends(get_deps)]
-SessionDep = Annotated[Session, Depends(get_session)]
-
-
-class Location(BaseModel):
-    lat: float = Field(ge=-90, le=90)
-    lng: float = Field(ge=-180, le=180)
 
 
 class SubmitReportRequest(BaseModel):
@@ -48,7 +40,7 @@ class SubmitReportRequest(BaseModel):
         if len(set(photos)) != len(photos):
             raise ValueError("photos must not repeat")
         for name in photos:
-            if not UPLOAD_OBJECT_NAME.match(name):
+            if not UPLOAD_OBJECT_NAME.fullmatch(name):
                 raise ValueError(f"not an upload object name: {name!r}")
         return photos
 

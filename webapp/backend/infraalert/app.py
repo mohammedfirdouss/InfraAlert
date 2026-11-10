@@ -3,12 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
-from infraalert import dev_uploads
+from infraalert import __version__, dev_uploads
 from infraalert.citizen import api as citizen_api
 from infraalert.concurrency import ConcurrencyLimitMiddleware
 from infraalert.config import Settings
@@ -34,14 +33,8 @@ FRONTEND_DIST_CANDIDATES = [
 def create_app(deps: Deps | None = None) -> FastAPI:
     deps = deps or build_deps(Settings.from_env())
 
-    app = FastAPI(title="InfraAlert API", version="0.2.0")
+    app = FastAPI(title="InfraAlert API", version=__version__)
     app.state.deps = deps
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["http://localhost:5173", "http://localhost:3000"],
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
     app.add_middleware(ConcurrencyLimitMiddleware, limit=deps.settings.max_concurrent_requests)
 
     @app.get("/api/health")

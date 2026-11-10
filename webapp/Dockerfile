@@ -32,10 +32,16 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Dependencies only (from pyproject.toml), so code changes don't reinstall them.
-COPY webapp/backend/pyproject.toml .
+# Dependencies only, at the versions in uv.lock (the ones the tests ran against), so
+# code changes don't reinstall them. uv needs the workspace's two pyproject files to
+# read the lock; they are removed again before the backend is copied in.
+COPY pyproject.toml uv.lock /deps/
+COPY webapp/backend/pyproject.toml /deps/webapp/backend/pyproject.toml
 RUN pip install --no-cache-dir uv && \
-    uv pip install --system --no-cache -r pyproject.toml
+    uv export --project /deps --frozen --no-dev --no-emit-workspace --no-hashes \
+        --package infra-alert-webapp -o /deps/requirements.txt && \
+    uv pip install --system --no-cache -r /deps/requirements.txt && \
+    rm -rf /deps
 
 # main.py, alembic.ini, migrations/ and the infraalert package. Run from /app, so
 # `uvicorn main:app`, `alembic upgrade head` and `python -m infraalert.cli` all work.
