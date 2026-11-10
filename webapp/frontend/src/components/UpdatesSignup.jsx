@@ -8,10 +8,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { AlertCircle, AlertTriangle, BellRing, Check, Loader2, Mail, Send } from 'lucide-react'
 import { ApiError, subscribeToUpdates } from '../api/client.js'
+import { FINAL_STATUSES } from './StatusTimeline.jsx'
 import TurnstileWidget from './TurnstileWidget.jsx'
-
-/** Statuses after which nothing changes, so there's nothing to be told about. */
-const FINAL_STATUSES = new Set(['resolved', 'closed'])
 
 export const MESSAGES = {
   emailMissing: 'Enter your email address.',

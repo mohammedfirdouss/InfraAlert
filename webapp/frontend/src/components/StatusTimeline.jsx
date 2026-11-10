@@ -12,6 +12,9 @@ export const STATUS_STEPS = [
   { status: 'resolved', label: 'Resolved' },
 ]
 
+/** Statuses after which nothing changes: polling stops and there are no more updates to send. */
+export const FINAL_STATUSES = new Set(['resolved', 'closed'])
+
 /** One-line hint shown under the current station. */
 const STEP_HINTS = {
   received: 'Waiting for city staff to pick it up.',
