@@ -8,7 +8,8 @@ transition, and writes the audit log in the same transaction.
      └──────────────┴──── close_invalid / merge (closed_duplicate) ──────┘
 
 Team availability is never stored: ending an assignment (resolve, close, merge,
-reassign) is what frees a team.
+reassign) is what frees a team. Whenever a team is taken or freed, the incidents
+still waiting get a fresh suggestion (refresh_suggested_teams).
 """
 
 from __future__ import annotations
@@ -21,6 +22,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from infraalert.db.models import (
+    OPEN_STATUSES,
     Assignment,
     AuditLog,
     Incident,
@@ -32,10 +34,10 @@ from infraalert.db.models import (
     Team,
 )
 from infraalert.notify.outbox import record_incident_event
-from infraalert.processing.worker import rescore
+from infraalert.processing.worker import lock_dispatch, refresh_suggested_teams, rescore
 
 S = IncidentStatus
-OPEN = {S.NEW, S.TRIAGED, S.ASSIGNED, S.ON_SITE}
+OPEN = set(OPEN_STATUSES)
 FROM = {
     "triage": {S.NEW, S.TRIAGED},
     "assign": {S.NEW, S.TRIAGED, S.ASSIGNED},
@@ -59,6 +61,7 @@ def not_found() -> DispatchError:
 
 
 def _lock(session: Session, incident_id: uuid.UUID, action: str) -> Incident:
+    lock_dispatch(session)
     incident = session.execute(
         select(Incident).where(Incident.id == incident_id).with_for_update()
     ).scalar_one_or_none()
@@ -150,6 +153,7 @@ def assign(session: Session, staff: Staff, incident_id: uuid.UUID, team_id: uuid
         suggested_team_id=incident.suggested_team_id,
         overridden=incident.suggested_team_id not in (None, team_id),
     )
+    refresh_suggested_teams(session)
 
 
 def mark_on_site(session: Session, staff: Staff, incident_id: uuid.UUID) -> None:
@@ -165,6 +169,7 @@ def resolve(session: Session, staff: Staff, incident_id: uuid.UUID, note: str | 
     team = _end_assignment(session, incident.id)
     record_incident_event(session, incident.id, NotificationEvent.RESOLVED)  # citizen updates
     _audit(session, staff, "resolved", incident.id, team_id=team, note=note)
+    refresh_suggested_teams(session)
 
 
 def close_invalid(session: Session, staff: Staff, incident_id: uuid.UUID, reason: str) -> None:
@@ -173,6 +178,8 @@ def close_invalid(session: Session, staff: Staff, incident_id: uuid.UUID, reason
     team = _end_assignment(session, incident.id)
     record_incident_event(session, incident.id, NotificationEvent.CLOSED)  # citizen updates
     _audit(session, staff, "closed_invalid", incident.id, reason=reason, team_id=team)
+    if team is not None:
+        refresh_suggested_teams(session)
 
 
 def merge(
@@ -203,6 +210,8 @@ def merge(
     rescore(session, target)
     _audit(session, staff, "merged", source.id, into=target.id, reports=len(moved), team_id=team)
     _audit(session, staff, "absorbed", target.id, source=source.id, reports=len(moved))
+    if team is not None:
+        refresh_suggested_teams(session)
 
 
 def split(

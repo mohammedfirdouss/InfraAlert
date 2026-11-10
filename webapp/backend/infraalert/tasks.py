@@ -3,7 +3,8 @@ Hands submitted reports to the processing worker (ADR 0002).
 
 Enqueueing happens after the report is committed. If it fails, the report is
 still accepted; reports left in `received` are picked up again by the sweep
-(POST /tasks/sweep, see infraalert.processing.api).
+(POST /tasks/sweep, see infraalert.processing.api) or, with the inline queue, the
+next time the app starts (infraalert.deps).
 """
 
 from __future__ import annotations

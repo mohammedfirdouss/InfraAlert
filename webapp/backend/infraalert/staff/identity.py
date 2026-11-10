@@ -9,8 +9,9 @@ import logging
 from dataclasses import dataclass
 from typing import Protocol
 
-from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
+
+from infraalert.google_certs import CachingRequest
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ class IdentityPlatformVerifier:
         self._issuer = f"https://securetoken.google.com/{project_id}"
         # e.g. "oidc.city-sso": only accept sign-ins through the city's provider.
         self._sign_in_provider = sign_in_provider
-        self._request = google_requests.Request()
+        self._request = CachingRequest()
 
     def verify(self, token: str) -> Identity | None:
         try:

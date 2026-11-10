@@ -4,22 +4,19 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Callable
-from typing import Annotated, Literal
+from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from infraalert.db.models import IssueType
-from infraalert.deps import Deps, get_deps, get_session
+from infraalert.deps import Deps, DepsDep, SessionDep
 from infraalert.notify.outbox import kick_delivery
 from infraalert.staff import dispatch, views
 from infraalert.staff.auth import Dispatcher
 
 router = APIRouter(prefix="/api/staff", tags=["dispatch"])
-
-SessionDep = Annotated[Session, Depends(get_session)]
-DepsDep = Annotated[Deps, Depends(get_deps)]
 
 
 def _act(session: Session, action: Callable[[], object], deps: Deps | None = None) -> object:

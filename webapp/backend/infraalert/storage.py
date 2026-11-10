@@ -14,6 +14,7 @@ import hmac
 import os
 import re
 import secrets
+import threading
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -31,6 +32,10 @@ MAX_PHOTO_BYTES = 10 * 1024 * 1024
 UPLOAD_URL_TTL = timedelta(minutes=10)
 # Photo links handed to signed-in staff (ADR 0008: private bucket, short-lived URLs).
 VIEW_URL_TTL = timedelta(minutes=15)
+# Signing a view URL is a network call to IAM. One signed for the same photo a moment
+# ago is reused while it still has most of its life left (at least 11 of 15 minutes).
+VIEW_URL_REUSE = timedelta(minutes=4)
+_VIEW_URL_CACHE_MAX = 5000
 UPLOAD_OBJECT_NAME = re.compile(r"^uploads/[0-9a-f]{32}\.(jpg|png|webp|heic)$")
 
 
@@ -83,13 +88,17 @@ class PhotoStorage(Protocol):
         ...
 
     def view_url(self, object_name: str) -> str:
-        """A URL a staff member's browser can load for VIEW_URL_TTL."""
+        """A URL a staff member's browser can load for most of VIEW_URL_TTL."""
+        ...
+
+    def delete(self, object_name: str) -> None:
+        """Remove an object for good (photo retention). Idempotent."""
         ...
 
 
 class GcsPhotoStorage:
     """
-    Signs V4 PUT URLs. On Cloud Run there is no private key, so signing goes
+    Signs V4 URLs. On Cloud Run there is no private key, so signing goes
     through the IAM signBlob API: the service account needs
     roles/iam.serviceAccountTokenCreator on itself.
     """
@@ -99,13 +108,24 @@ class GcsPhotoStorage:
 
         self._client = client or storage.Client()
         self._bucket = self._client.bucket(bucket_name)
+        self._lock = threading.Lock()
+        self._credentials: Any = None
+        self._view_urls: dict[str, tuple[float, str]] = {}
 
-    def _signed_url(self, object_name: str, **kwargs: Any) -> str:
+    def _fresh_credentials(self) -> Any:
+        """The service's credentials, refreshed only when their token has run out."""
         import google.auth
         import google.auth.transport.requests
 
-        credentials, _ = google.auth.default()
-        credentials.refresh(google.auth.transport.requests.Request())
+        with self._lock:
+            if self._credentials is None:
+                self._credentials, _ = google.auth.default()
+            if not self._credentials.valid:
+                self._credentials.refresh(google.auth.transport.requests.Request())
+            return self._credentials
+
+    def _signed_url(self, object_name: str, **kwargs: Any) -> str:
+        credentials = self._fresh_credentials()
         url: str = self._bucket.blob(object_name).generate_signed_url(
             version="v4",
             service_account_email=getattr(credentials, "service_account_email", None),
@@ -130,7 +150,25 @@ class GcsPhotoStorage:
         )
 
     def view_url(self, object_name: str) -> str:
-        return self._signed_url(object_name, expiration=VIEW_URL_TTL, method="GET")
+        now = time.monotonic()
+        with self._lock:
+            cached = self._view_urls.get(object_name)
+        if cached is not None and now - cached[0] < VIEW_URL_REUSE.total_seconds():
+            return cached[1]
+        url = self._signed_url(object_name, expiration=VIEW_URL_TTL, method="GET")
+        with self._lock:
+            if len(self._view_urls) >= _VIEW_URL_CACHE_MAX:
+                self._view_urls.clear()
+            self._view_urls[object_name] = (now, url)
+        return url
+
+    def delete(self, object_name: str) -> None:
+        from google.api_core.exceptions import NotFound
+
+        try:
+            self._bucket.blob(object_name).delete()
+        except NotFound:
+            pass  # already gone
 
     def claim(self, upload_object_name: str, report_id: uuid.UUID) -> str | None:
         """
@@ -231,3 +269,6 @@ class LocalPhotoStorage:
         path = self.directory / object_name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
+
+    def delete(self, object_name: str) -> None:
+        self._path(object_name).unlink(missing_ok=True)
