@@ -27,6 +27,7 @@ import { createContext, useCallback, useContext, useLayoutEffect, useEffect, use
 import { ApiError } from '../api/client.js'
 import { config } from '../config.js'
 import { configureStaffApi, getMe } from './api.js'
+import { NETWORK_ERROR } from './ui.jsx'
 
 /** @typedef {import('./api.js').Me} Me */
 /** @typedef {'loading' | 'signed_out' | 'signed_in' | 'not_staff'} StaffStatus */
@@ -88,7 +89,7 @@ function describeError(err) {
   if (code === 'auth/invalid-api-key' || code === 'auth/configuration-not-found' || code === 'auth/operation-not-allowed')
     return "Staff sign-in isn't set up correctly. Contact your administrator."
   if (code === 'auth/user-disabled') return 'Your city account is disabled.'
-  if (err instanceof TypeError) return "We couldn't reach the server. Check your connection and try again."
+  if (err instanceof TypeError) return NETWORK_ERROR
   return 'Sign-in failed. Try again.'
 }
 
@@ -175,7 +176,8 @@ export function StaffAuthProvider({ children }) {
         return userRef.current ? userRef.current.getIdToken() : null
       },
       () => {
-        if (statusRef.current === 'signed_out') return
+        // While signing in, loadMe reports the 401 itself ("that sign-in wasn't accepted").
+        if (statusRef.current === 'signed_out' || statusRef.current === 'loading') return
         clearSession('Your session ended. Sign in again to continue.')
       },
     )

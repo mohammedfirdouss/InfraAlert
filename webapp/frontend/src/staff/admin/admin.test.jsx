@@ -4,12 +4,13 @@ import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ApiError } from '../../api/client.js'
 
-vi.mock('react-leaflet', () => import('./leafletStandIn.jsx'))
+vi.mock('react-leaflet', () => import('../../test/leafletStandIn.jsx'))
 vi.mock('../../map.js', () => ({ tileLayer: { url: 'x', attribution: 'x' }, markerIcon: {} }))
 
 import BaseLocationPicker from './BaseLocationPicker.jsx'
-import { Toasts, describeError, useToasts } from './feedback.jsx'
-import { MAP_CENTRE } from './leafletStandIn.jsx'
+import { describeError } from '../ui.jsx'
+import { Toasts, useToasts } from './feedback.jsx'
+import { MAP_CENTRE } from '../../test/leafletStandIn.jsx'
 
 describe('BaseLocationPicker', () => {
   function Host({ initial = null, onChange = () => {} }) {

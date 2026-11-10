@@ -1,5 +1,5 @@
 /**
- * Loading, empty, error and toast pieces shared by the Teams and Staff pages.
+ * Loading, empty, error and toast pieces shared by the Teams, Staff and Places pages.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AlertCircle, CheckCircle2, RotateCw, X } from 'lucide-react'
@@ -71,13 +71,13 @@ export function Toasts({ toasts, dismiss }) {
 }
 
 /** Placeholder rows while a list loads. */
-export function SkeletonRows({ rows = 5, label = 'Loading' }) {
+export function SkeletonRows({ label = 'Loading' }) {
   return (
     <div aria-busy="true" className="divide-y divide-concrete-200">
       <span className="sr-only" role="status">
         {label}…
       </span>
-      {Array.from({ length: rows }, (_, i) => (
+      {Array.from({ length: 5 }, (_, i) => (
         <div key={i} className="flex animate-pulse items-center gap-4 px-4 py-3.5" aria-hidden="true">
           <div className="h-3.5 w-1/4 rounded bg-concrete-200" />
           <div className="h-3.5 w-1/3 rounded bg-concrete-200" />
@@ -123,18 +123,4 @@ export function InlineError({ children, id }) {
       {children}
     </p>
   )
-}
-
-/**
- * Plain words for a failed request. `messages` maps backend detail codes.
- * @param {unknown} error @param {Record<string, string>} [messages]
- */
-export function describeError(error, messages = {}) {
-  const detail = /** @type {any} */ (error)?.detail
-  if (typeof detail === 'string' && messages[detail]) return messages[detail]
-  const status = /** @type {any} */ (error)?.status
-  if (status === 403) return "You don't have permission to do that."
-  if (status === 422) return 'Some of the details were not accepted. Check them and try again.'
-  if (status) return 'Something went wrong on our side. Try again in a moment.'
-  return "We couldn't reach the server. Check your connection and try again."
 }

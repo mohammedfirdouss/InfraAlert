@@ -1,11 +1,10 @@
 /**
- * Staff API client. Mirrors webapp/backend/infraalert/staff/api.py (dispatch)
- * and staff/admin_api.py (teams, staff). Every call carries the signed-in
- * staff member's ID token; the auth provider registers how to get it.
+ * Staff API client. Mirrors webapp/backend/infraalert/staff/api.py (dispatch),
+ * staff/admin_api.py (teams, staff) and places/api.py (sensitive places). Every
+ * call carries the signed-in staff member's ID token; the auth provider
+ * registers how to get it.
  */
-import { ApiError } from '../api/client.js'
-
-const BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+import { ApiError, BASE_URL } from '../api/client.js'
 
 /** @type {() => Promise<string | null>} */
 let tokenProvider = async () => null
@@ -89,7 +88,7 @@ const patch = (path, body) => request(path, { method: 'PATCH', body: JSON.string
  */
 
 /** @returns {Promise<Me>} */
-export const getMe = () => request('/api/staff/me')
+export const getMe = () => request('/staff/me')
 
 // Dispatch
 
@@ -101,14 +100,14 @@ export const getMe = () => request('/api/staff/me')
 export function getQueue(tab, issueType) {
   const params = new URLSearchParams({ tab })
   if (issueType) params.set('issue_type', issueType)
-  return request(`/api/staff/queue?${params}`)
+  return request(`/staff/queue?${params}`)
 }
 
 /** @returns {Promise<{ incident: IncidentDetail, candidate_teams: CandidateTeam[], nearby_incidents: NearbyIncident[] }>} */
-export const getIncident = (id) => request(`/api/staff/incidents/${encodeURIComponent(id)}`)
+export const getIncident = (id) => request(`/staff/incidents/${encodeURIComponent(id)}`)
 
 const action = (id, name, body) =>
-  post(`/api/staff/incidents/${encodeURIComponent(id)}/${name}`, body)
+  post(`/staff/incidents/${encodeURIComponent(id)}/${name}`, body)
 
 /*
  * Actions reject with ApiError. Its detail codes are: invalid_transition (409),
@@ -128,21 +127,21 @@ export const split = (id, reportIds) => action(id, 'split', { report_ids: report
 // Teams (supervisor+ to change; any staff to read)
 
 /** @returns {Promise<Team[]>} */
-export const getTeams = () => request('/api/staff/teams')
+export const getTeams = () => request('/staff/teams')
 /** Rejects 409 team_name_taken. */
-export const createTeam = (team) => post('/api/staff/teams', team)
+export const createTeam = (team) => post('/staff/teams', team)
 /** Partial update; the response may include warning: 'team_busy_until_assignment_ends'. */
-export const updateTeam = (id, changes) => patch(`/api/staff/teams/${encodeURIComponent(id)}`, changes)
+export const updateTeam = (id, changes) => patch(`/staff/teams/${encodeURIComponent(id)}`, changes)
 
 // Staff (admin)
 
 /** @returns {Promise<Member[]>} */
-export const getMembers = () => request('/api/staff/members')
+export const getMembers = () => request('/staff/members')
 /** Rejects 409 already_staff. */
-export const inviteMember = (member) => post('/api/staff/members', member)
+export const inviteMember = (member) => post('/staff/members', member)
 /** Rejects 409 cannot_change_own_access or last_admin. */
 export const updateMember = (id, changes) =>
-  patch(`/api/staff/members/${encodeURIComponent(id)}`, changes)
+  patch(`/staff/members/${encodeURIComponent(id)}`, changes)
 
 // Sensitive places (admin): OpenStreetMap imports plus manual overrides (ADR 0004)
 
@@ -156,10 +155,10 @@ export const updateMember = (id, changes) =>
  */
 
 /** @returns {Promise<{ places: Place[], categories: PlaceCategory[], last_import_at: string | null }>} */
-export const getPlaces = () => request('/api/staff/places')
+export const getPlaces = () => request('/staff/places')
 /** Manual places are points. @param {{ name: string, category: string, location: LatLng }} place */
-export const createPlace = (place) => post('/api/staff/places', place)
+export const createPlace = (place) => post('/staff/places', place)
 /** Admins can disable OSM places (kept disabled across re-imports) or edit manual ones. */
 export const updatePlace = (id, changes) =>
-  patch(`/api/staff/places/${encodeURIComponent(id)}`, changes)
+  patch(`/staff/places/${encodeURIComponent(id)}`, changes)
 
