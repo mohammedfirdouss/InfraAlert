@@ -22,6 +22,7 @@ describe('Lightbox', () => {
     render(<Harness onClose={onClose} />)
     expect(screen.getByRole('button', { name: 'Close photo' })).toHaveFocus()
     expect(screen.getByRole('dialog')).toHaveAttribute('aria-modal', 'true')
+    expect(screen.getByRole('dialog')).toHaveClass('on-dark')
 
     await user.keyboard('{ArrowLeft}')
     expect(screen.getByRole('img')).toHaveAttribute('src', 'https://x/3.jpg')

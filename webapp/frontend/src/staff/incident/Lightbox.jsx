@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { useFocusTrap } from '../useFocusTrap.js'
 
 /**
  * A full-screen photo viewer. Escape closes; the arrow keys step through the
@@ -17,43 +18,30 @@ export default function Lightbox({ photos, index, onIndexChange, onClose, onImag
   const count = photos.length
   const photo = photos[index]
 
-  useEffect(() => {
-    const previous = document.activeElement
-    closeRef.current?.focus()
-    return () => {
-      if (previous instanceof HTMLElement) previous.focus()
-    }
-  }, [])
+  // Focus starts on Close and returns to the thumbnail; Tab stays among the dialog's buttons.
+  const trapKeys = useFocusTrap(dialogRef, {
+    initialFocus: closeRef,
+    onEscape: (e) => {
+      e.preventDefault()
+      onClose()
+    },
+  })
 
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        onClose()
-      } else if (e.key === 'ArrowRight' && count > 1) {
+      if (e.key === 'ArrowRight' && count > 1) {
         e.preventDefault()
         onIndexChange((index + 1) % count)
       } else if (e.key === 'ArrowLeft' && count > 1) {
         e.preventDefault()
         onIndexChange((index - 1 + count) % count)
-      } else if (e.key === 'Tab') {
-        // Keep focus inside the dialog.
-        const focusable = dialogRef.current?.querySelectorAll('button')
-        if (!focusable?.length) return
-        const first = focusable[0]
-        const last = focusable[focusable.length - 1]
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault()
-          last.focus()
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault()
-          first.focus()
-        }
+      } else {
+        trapKeys(e)
       }
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [index, count, onClose, onIndexChange])
+  }, [index, count, onIndexChange, trapKeys])
 
   if (!photo) return null
   const position = `${label} ${index + 1} of ${count}`
@@ -64,7 +52,7 @@ export default function Lightbox({ photos, index, onIndexChange, onClose, onImag
       role="dialog"
       aria-modal="true"
       aria-label={position}
-      className="fixed inset-0 z-[2000] flex flex-col bg-ink/95 p-4 text-white"
+      className="on-dark fixed inset-0 z-[2000] flex flex-col bg-ink/95 p-4 text-white"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose()
       }}

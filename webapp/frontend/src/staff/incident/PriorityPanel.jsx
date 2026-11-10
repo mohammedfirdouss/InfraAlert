@@ -1,3 +1,4 @@
+import { categoryLabel } from '../places/format.js'
 import { formatDistance, formatScore } from '../ui.jsx'
 
 const COMPONENTS = [
@@ -6,16 +7,6 @@ const COMPONENTS = [
   { key: 'place', label: 'Sensitive places', swatch: 'bg-signal-400' },
   { key: 'volume', label: 'Report volume', swatch: 'bg-concrete-400' },
 ]
-
-const PLACE_LABELS = {
-  hospital: 'Hospital',
-  school: 'School',
-  fire_station: 'Fire station',
-  clinic: 'Clinic',
-  police: 'Police station',
-  major_road: 'Major road',
-  market: 'Market',
-}
 
 const fmt = (n) => n.toFixed(2)
 
@@ -119,7 +110,7 @@ export default function PriorityPanel({ incident }) {
               <ul className="mt-1 space-y-0.5 text-sm">
                 {inputs.nearby_places.map((p, i) => (
                   <li key={`${p.category}-${i}`} className="flex justify-between gap-2">
-                    <span>{PLACE_LABELS[p.category] ?? p.category.replace(/_/g, ' ')}</span>
+                    <span>{categoryLabel(p.category)}</span>
                     <span className="font-mono text-xs text-asphalt-500">{formatDistance(p.distance_m)}</span>
                   </li>
                 ))}

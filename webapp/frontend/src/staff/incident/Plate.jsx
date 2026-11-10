@@ -50,5 +50,5 @@ export function useAction(perform) {
     },
     [perform],
   )
-  return { run, pending, error, setError }
+  return { run, pending, error }
 }

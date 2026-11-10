@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { IssueTypeLabel, StatusPill, formatDistance } from '../ui.jsx'
-import { parseIncidentId, shortRef } from './format.js'
+import { IssueTypeLabel, StatusPill, formatDistance, incidentRef, reportCount as countReports } from '../ui.jsx'
+import { parseIncidentId } from './format.js'
 import { ActionError, useAction } from './Plate.jsx'
 
 /**
@@ -20,7 +20,7 @@ export default function MergeAction({ incidentId, reportCount, teamName, nearby,
   const [pasteError, setPasteError] = useState(/** @type {string | null} */ (null))
   const { run, pending, error } = useAction(onMerge)
   const showing = open || Boolean(target)
-  const reference = shortRef(incidentId)
+  const reference = incidentRef(incidentId)
 
   if (!showing) {
     return (
@@ -51,7 +51,7 @@ export default function MergeAction({ incidentId, reportCount, teamName, nearby,
     onTargetChange(id)
   }
 
-  const reports = `${reportCount} report${reportCount === 1 ? '' : 's'}`
+  const reports = countReports(reportCount)
 
   return (
     <div className="space-y-3 rounded-lg border-2 border-ink bg-concrete-50 p-3">
@@ -74,13 +74,13 @@ export default function MergeAction({ incidentId, reportCount, teamName, nearby,
                   />
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <span className="font-mono text-xs font-semibold">{shortRef(n.id)}</span>
+                      <span className="font-mono text-xs font-semibold">{incidentRef(n.id)}</span>
                       <IssueTypeLabel value={n.issue_type} className="font-semibold" />
                       <StatusPill status={n.status} />
                     </span>
                     <span className="mt-0.5 block truncate text-asphalt-600">{n.headline}</span>
                     <span className="font-mono text-xs text-asphalt-500">
-                      {formatDistance(n.distance_m)} away · {n.report_count} report{n.report_count === 1 ? '' : 's'}
+                      {formatDistance(n.distance_m)} away · {countReports(n.report_count)}
                     </span>
                   </span>
                 </label>
@@ -123,8 +123,8 @@ export default function MergeAction({ incidentId, reportCount, teamName, nearby,
       {target && (
         <div className="space-y-2 rounded-md border-2 border-ink bg-white p-2" role="group" aria-label="Confirm merge">
           <p className="text-sm font-bold" id="merge-confirm">
-            Merge {reference} into {shortRef(target)}? Its {reports} move to {shortRef(target)}, and {reference} closes
-            as a duplicate.{teamName && ` ${teamName} will be released.`} Citizens will follow {shortRef(target)}&rsquo;s
+            Merge {reference} into {incidentRef(target)}? Its {reports} move to {incidentRef(target)}, and {reference} closes
+            as a duplicate.{teamName && ` ${teamName} will be released.`} Citizens will follow {incidentRef(target)}&rsquo;s
             progress.
           </p>
           <ActionError message={error} />
@@ -135,7 +135,7 @@ export default function MergeAction({ incidentId, reportCount, teamName, nearby,
             aria-describedby="merge-confirm"
             onClick={() => run(target)}
           >
-            {pending ? 'Merging…' : `Merge into ${shortRef(target)}`}
+            {pending ? 'Merging…' : `Merge into ${incidentRef(target)}`}
           </button>
         </div>
       )}
