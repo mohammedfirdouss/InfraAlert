@@ -46,11 +46,6 @@ export default {
           600: '#1a8a4b',
           700: '#136b3a',
         },
-        survey: {
-          50: '#eef3ff',
-          500: '#2f5bff',
-          600: '#1f45e0',
-        },
       },
       fontFamily: {
         sans: ['Overpass', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
