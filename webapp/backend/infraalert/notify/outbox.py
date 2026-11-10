@@ -111,11 +111,13 @@ def _deliver(
     session: Session, notification: Notification, mailer: Mailer, settings: Settings
 ) -> str:
     report = session.get_one(Report, notification.report_id)
-    contact = session.get_one(Contact, notification.contact_id)
-    if report.contact_id != contact.id or contact.verified_at is None:
-        # Unsubscribed (or replaced by another address) since this was queued.
-        notification.status = NotificationStatus.CANCELLED
+    # The report's address now, which may have been replaced since this was queued:
+    # each event is queued once per report, so the update follows the report.
+    contact = session.get(Contact, report.contact_id) if report.contact_id else None
+    if contact is None or contact.verified_at is None:
+        notification.status = NotificationStatus.CANCELLED  # unsubscribed since
         return "cancelled"
+    notification.contact_id = contact.id
 
     email = update_email(
         to=contact.address,

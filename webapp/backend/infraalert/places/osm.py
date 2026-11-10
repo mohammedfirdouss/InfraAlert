@@ -23,7 +23,9 @@ from sqlalchemy.dialects.postgresql import ARRAY, insert
 from sqlalchemy.orm import Session
 from sqlalchemy.types import Text
 
+from infraalert import __version__
 from infraalert.db.models import AuditLog, PlaceSource, SensitivePlace
+from infraalert.processing.worker import lock_dispatch, rescore_open_incidents
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +44,7 @@ HIGHWAY_CATEGORIES: dict[str, str] = {"trunk": "major_road", "primary": "major_r
 # Seconds Overpass may spend on the query; the HTTP read timeout allows a bit more.
 QUERY_TIMEOUT_S = 180
 HTTP_TIMEOUT = httpx.Timeout(QUERY_TIMEOUT_S + 30, connect=10.0)
-USER_AGENT = "InfraAlert/0.2 (city incident triage; monthly sensitive-places import)"
+USER_AGENT = f"InfraAlert/{__version__} (city incident triage; monthly sensitive-places import)"
 
 # Deletions are skipped when the import returns fewer places than this share of the
 # OSM places already stored: Overpass can time out or truncate and still answer 200.
@@ -179,6 +181,7 @@ def upsert_places(session: Session, places: Sequence[OsmPlace]) -> ImportResult:
     """
     if not places:
         raise ImportRefused("the OSM import returned no places; refusing to change anything")
+    lock_dispatch(session)
     session.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": _ADVISORY_LOCK_KEY})
 
     stored = session.scalar(
@@ -249,6 +252,9 @@ def upsert_places(session: Session, places: Sequence[OsmPlace]) -> ImportResult:
         deleted=deleted,
         deletions_skipped=deletions_skipped,
     )
+    if inserted or updated or deleted:
+        session.flush()
+        rescore_open_incidents(session)  # nearness to these places is part of their score
     session.add(
         AuditLog(
             staff_id=None,
