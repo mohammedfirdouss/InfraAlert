@@ -15,7 +15,7 @@ const initials = (name) =>
  * Build a team-id → name resolver from everything the page knows about teams.
  * @param {{ incident: import('../api.js').IncidentDetail, candidateTeams: import('../api.js').CandidateTeam[] }} args
  */
-export function teamNameResolver({ incident, candidateTeams }) {
+function teamNameResolver({ incident, candidateTeams }) {
   const names = new Map()
   for (const t of candidateTeams) names.set(t.id, t.name)
   for (const a of incident.assignments) names.set(a.team.id, a.team.name)

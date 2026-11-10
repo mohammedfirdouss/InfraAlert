@@ -1,6 +1,7 @@
 import { CircleMarker, MapContainer, Marker, TileLayer, Tooltip } from 'react-leaflet'
+import { formatLatLng } from '../../format.js'
 import { markerIcon, tileLayer } from '../../map.js'
-import { issueTypeName, shortRef } from './format.js'
+import { incidentRef, issueTypeLabel, reportCount } from '../ui.jsx'
 
 const INK = '#14161a'
 
@@ -8,18 +9,15 @@ const INK = '#14161a'
  * The incident pin, its reports' points, and nearby open incidents as small
  * circles; clicking a nearby circle picks it as the merge target.
  *
- * Nearby incidents are drawn only when the API gives their `location`.
- *
  * @param {{
  *   incident: import('../api.js').IncidentDetail,
- *   nearby: (import('../api.js').NearbyIncident & { location?: { lat: number, lng: number } })[],
+ *   nearby: import('../api.js').NearbyIncident[],
  *   mergeTarget: string | null, canMerge: boolean, onSelectNearby: (id: string) => void,
  * }} props
  */
 export default function IncidentMap({ incident, nearby, mergeTarget, canMerge, onSelectNearby }) {
   const { location } = incident.item
   const center = [location.lat, location.lng]
-  const placed = nearby.filter((n) => n.location)
 
   return (
     <section aria-labelledby="map-title" className="card overflow-hidden">
@@ -27,14 +25,12 @@ export default function IncidentMap({ incident, nearby, mergeTarget, canMerge, o
         <h2 id="map-title" className="section-title">
           Map
         </h2>
-        <span className="readout">
-          {location.lat.toFixed(5)}, {location.lng.toFixed(5)}
-        </span>
+        <span className="readout">{formatLatLng(location)}</span>
       </div>
       <div className="relative z-0 m-3 h-64 overflow-hidden rounded-lg border-2 border-ink bg-concrete-200 sm:h-72">
         <MapContainer key={`${incident.item.id}`} center={center} zoom={17} scrollWheelZoom={false} className="h-full w-full">
           <TileLayer url={tileLayer.url} attribution={tileLayer.attribution} />
-          {placed.map((n) => {
+          {nearby.map((n) => {
             const selected = n.id === mergeTarget
             return (
               <CircleMarker
@@ -51,8 +47,7 @@ export default function IncidentMap({ incident, nearby, mergeTarget, canMerge, o
                 eventHandlers={canMerge ? { click: () => onSelectNearby(n.id) } : undefined}
               >
                 <Tooltip>
-                  {shortRef(n.id)} · {issueTypeName(n.issue_type)} · {n.report_count} report
-                  {n.report_count === 1 ? '' : 's'}
+                  {incidentRef(n.id)} · {issueTypeLabel(n.issue_type)} · {reportCount(n.report_count)}
                   {canMerge ? ' · click to merge into' : ''}
                 </Tooltip>
               </CircleMarker>
@@ -73,7 +68,7 @@ export default function IncidentMap({ incident, nearby, mergeTarget, canMerge, o
       </div>
       <p className="px-4 pb-3 text-xs text-asphalt-500">
         <span className="mr-1 inline-block h-2 w-2 rounded-full bg-ink align-middle" aria-hidden="true" /> reports
-        {placed.length > 0 && (
+        {nearby.length > 0 && (
           <>
             {' '}
             · <span className="mx-1 inline-block h-2.5 w-2.5 rounded-full border-2 border-dashed border-ink align-middle" aria-hidden="true" />

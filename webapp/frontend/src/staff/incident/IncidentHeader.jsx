@@ -1,7 +1,14 @@
 import { ArrowLeft, GitMerge } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { HazardFlags, IssueTypeLabel, SeverityBadge, StatusPill, formatAge, formatDateTime } from '../ui.jsx'
-import { shortRef } from './format.js'
+import {
+  HazardFlags,
+  IssueTypeLabel,
+  SeverityBadge,
+  StatusPill,
+  formatAge,
+  formatDateTime,
+  incidentRef,
+} from '../ui.jsx'
 
 /**
  * Who, what, how urgent: the incident's identity at a glance.
@@ -17,7 +24,7 @@ export default function IncidentHeader({ incident }) {
       </Link>
 
       <div className="flex flex-wrap items-center gap-2">
-        <span className="readout" title="Reference">{shortRef(item.id)}</span>
+        <span className="readout" title="Reference">{incidentRef(item.id)}</span>
         <SeverityBadge severity={item.severity} score={item.priority_score} />
         <StatusPill status={item.status} />
         <HazardFlags flags={item.hazard_flags} />
@@ -63,7 +70,7 @@ export default function IncidentHeader({ incident }) {
           <GitMerge size={16} strokeWidth={2.5} aria-hidden="true" />
           Merged into{' '}
           <Link to={`/staff/incidents/${incident.merged_into_id}`} className="font-mono underline decoration-2 underline-offset-4">
-            {shortRef(incident.merged_into_id)}
+            {incidentRef(incident.merged_into_id)}
           </Link>
           . Its reports now live there.
         </p>

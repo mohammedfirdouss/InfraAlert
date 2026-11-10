@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { formatDateTime } from '../ui.jsx'
+import { formatDateTime, incidentRef } from '../ui.jsx'
 import AssignAction from './AssignAction.jsx'
 import CloseAction from './CloseAction.jsx'
 import MergeAction from './MergeAction.jsx'
@@ -7,7 +7,7 @@ import { Plate } from './Plate.jsx'
 import ProgressActions from './ProgressActions.jsx'
 import SplitAction from './SplitAction.jsx'
 import TriageAction from './TriageAction.jsx'
-import { allowedActions, shortRef, suggestedIssueType } from './format.js'
+import { allowedActions, suggestedIssueType } from './format.js'
 
 /**
  * @typedef {{ ok: boolean, message?: string }} Outcome
@@ -47,7 +47,7 @@ export default function ActionsPanel({
 }) {
   const { item } = incident
   const allowed = allowedActions(item.status)
-  const reference = shortRef(item.id)
+  const reference = incidentRef(item.id)
   const teamName = item.assigned_team?.name ?? null
 
   if (incident.merged_into_id || item.status === 'closed_duplicate') {
@@ -57,7 +57,7 @@ export default function ActionsPanel({
           Nothing to do here. This incident was merged into{' '}
           {incident.merged_into_id ? (
             <Link to={`/staff/incidents/${incident.merged_into_id}`} className="font-mono font-semibold underline decoration-2 underline-offset-2">
-              {shortRef(incident.merged_into_id)}
+              {incidentRef(incident.merged_into_id)}
             </Link>
           ) : (
             'another incident'

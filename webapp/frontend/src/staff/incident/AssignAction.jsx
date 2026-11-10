@@ -1,8 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { TriangleAlert } from 'lucide-react'
-import { formatDistance } from '../ui.jsx'
-import { issueTypeName, shortRef } from './format.js'
+import { formatDistance, incidentRef, issueTypeLabel } from '../ui.jsx'
 import { ActionError, Plate, useAction } from './Plate.jsx'
 
 /** Skilled and free first, then free but unskilled, then busy; nearest first within each. */
@@ -116,7 +115,7 @@ export default function AssignAction({ incidentId, issueType, teams, currentTeam
                           to={`/staff/incidents/${team.busy_with_incident_id}`}
                           className="font-mono text-xs underline decoration-2 underline-offset-2"
                         >
-                          On {shortRef(team.busy_with_incident_id)}
+                          On {incidentRef(team.busy_with_incident_id)}
                         </Link>
                       ))}
                   </li>
@@ -136,7 +135,7 @@ export default function AssignAction({ incidentId, issueType, teams, currentTeam
           {choice && !choice.skilled && (
             <p className="mt-2 flex items-start gap-1.5 text-[13px] font-semibold text-hazard-700">
               <TriangleAlert size={14} strokeWidth={2.5} className="mt-0.5 shrink-0" aria-hidden="true" />
-              {choice.name} isn&apos;t skilled for {issueTypeName(issueType).toLowerCase()}. You can still send them.
+              {choice.name} isn&apos;t skilled for {issueTypeLabel(issueType).toLowerCase()}. You can still send them.
             </p>
           )}
           <ActionError message={error} />
