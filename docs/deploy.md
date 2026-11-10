@@ -287,6 +287,7 @@ EOF
 
 gcloud run deploy $SERVICE --image=$IMAGE --region=$REGION \
   --service-account=$SA --allow-unauthenticated \
+  --max-instances=2 \
   --add-cloudsql-instances=$SQL_CONNECTION \
   --env-vars-file=env.prod.yaml \
   --set-secrets=DATABASE_URL=infraalert-database-url:latest,TURNSTILE_SECRET_KEY=infraalert-turnstile-secret-key:latest,RATE_LIMIT_SECRET=infraalert-rate-limit-secret:latest,SMTP_PASSWORD=infraalert-smtp-password:latest
@@ -297,6 +298,19 @@ gcloud run deploy $SERVICE --image=$IMAGE --region=$REGION \
 gcloud run services add-iam-policy-binding $SERVICE --region=$REGION \
   --member=serviceAccount:$SA --role=roles/run.invoker
 ```
+
+**Database connections:** each instance keeps up to 40 connections open (`DB_POOL_SIZE` 34 +
+`DB_MAX_OVERFLOW` 6), and the migration and CLI jobs use one more while they run. Instances × 40
+must stay under the Cloud SQL instance's `max_connections`, which is why the service is capped
+with `--max-instances=2` here. ⚠ verify the limit for your tier
+(`SHOW max_connections;`, about 100 on the 3.75 GB instance from step 1). To run more instances,
+use a larger database tier or raise its `max_connections` flag, or set smaller `DB_POOL_SIZE`,
+`DB_MAX_OVERFLOW` and `MAX_CONCURRENT_REQUESTS` in `env.prod.yaml`, keeping
+`MAX_CONCURRENT_REQUESTS` below the pool size (see
+[scripts/loadtest/README.md](../scripts/loadtest/README.md)).
+
+`PUBLIC_BASE_URL` is required in production: it is the origin in every link emailed to citizens,
+and the service refuses to start without it.
 
 Check the URL: `gcloud run services describe $SERVICE --region=$REGION --format='value(status.url)'`.
 ⚠ verify: services can have both a deterministic URL (`https://SERVICE-PROJECT_NUMBER.REGION.run.app`)
@@ -324,9 +338,11 @@ schedule() {  # name, cron, path, [attempt deadline]
     --attempt-deadline="${4:-180s}"
 }
 
-schedule sweep         "*/5 * * * *" /tasks/sweep          # re-enqueue reports that missed their task
+schedule sweep         "*/5 * * * *" /tasks/sweep          # re-enqueue reports that missed their task;
+                                                           # after an hour, send them to triage
 schedule notifications "* * * * *"   /tasks/notifications  # deliver citizen emails
-schedule retention     "30 3 * * *"  /tasks/retention      # daily data retention
+schedule retention     "30 3 * * *"  /tasks/retention      # daily data retention: contacts, and
+                                                           # photos 90 days after an incident closes
 schedule import-osm    "0 4 1 * *"   /tasks/import-osm 900s # monthly OpenStreetMap refresh
 ```
 

@@ -64,14 +64,19 @@ Same steps on a fresh database each time: simulated citizens submit a report, th
 
 ## Run it
 
-Needs Docker (for PostGIS) and `uv`.
+Needs Docker (for PostGIS) and `uv`. Each run drops and recreates its own database,
+`infraalert_loadtest`, on the local PostGIS server; your development database is not touched.
 
 ```sh
 # Fresh database, server started for you, fixed steps; prints the results table.
 scripts/loadtest/run_steps.sh after 200 400 800 1200
 
-# Reproduce the original pool settings (5 + 10 overflow, 30s timeout):
-DB_POOL_SIZE=5 DB_MAX_OVERFLOW=10 DB_POOL_TIMEOUT=30 scripts/loadtest/run_steps.sh before
+# Approximate the original setup: old pool settings (5 + 10 overflow, 30s timeout) and
+# effectively no cap on requests in flight. The third fix (4 inline workers instead of a
+# thread per report) is in the code and can't be switched off, so expect the collapse
+# but not the exact "before" numbers above, which were measured on the old code.
+DB_POOL_SIZE=5 DB_MAX_OVERFLOW=10 DB_POOL_TIMEOUT=30 MAX_CONCURRENT_REQUESTS=100000 \
+  scripts/loadtest/run_steps.sh before
 
 # Profile with memray while a load runs (writes var/memray/*.bin):
 PROFILE=1 scripts/loadtest/run_server.sh

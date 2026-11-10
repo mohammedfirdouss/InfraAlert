@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Reproducible load-test run: fresh database, fresh server, fixed load steps.
 # Usage: scripts/loadtest/run_steps.sh <label> [users...]
-#   Pool settings come from the environment, e.g. the old SQLAlchemy defaults:
-#   DB_POOL_SIZE=5 DB_MAX_OVERFLOW=10 DB_POOL_TIMEOUT=30 scripts/loadtest/run_steps.sh before
+#   Pool and concurrency settings come from the environment, e.g. the old SQLAlchemy
+#   defaults with no cap on requests in flight:
+#   DB_POOL_SIZE=5 DB_MAX_OVERFLOW=10 DB_POOL_TIMEOUT=30 MAX_CONCURRENT_REQUESTS=100000 \
+#     scripts/loadtest/run_steps.sh before
 # Results: var/loadtest/<label>/u<N>_stats.csv and a summary table on stdout.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -14,9 +16,14 @@ out=var/loadtest/$label
 env_file=scripts/loadtest/loadtest.env
 mkdir -p "$out"
 
-echo "== resetting database"
-docker compose down -v --remove-orphans >/dev/null 2>&1
+# A separate database on the local server: your development data is left alone.
+db=infraalert_loadtest
+psql() { docker compose exec -T db psql -U infraalert -d "${1}" -tAc "${2}"; }
+
+echo "== resetting database $db"
 docker compose up -d --wait db >/dev/null 2>&1
+psql postgres "DROP DATABASE IF EXISTS $db WITH (FORCE)" >/dev/null
+psql postgres "CREATE DATABASE $db" >/dev/null
 (cd webapp/backend && uv run --env-file "../../$env_file" alembic upgrade head >/dev/null 2>&1)
 uv run --env-file "$env_file" python -m infraalert.cli seed-dev >/dev/null
 
@@ -43,4 +50,4 @@ for u in steps:
     print(f"{u:>5}  {float(agg['Requests/s']):6.1f}  {post['50%']:>8}  {post['95%']:>8}  {post['99%']:>8}  {fail:6.2f}")
 PY
 echo "pool timeouts in server log: $(grep -c 'QueuePool limit' "$out/server.log" || true)"
-echo "reports left unprocessed: $(docker compose exec -T db psql -U infraalert -tAc "select count(*) from reports where processing = 'received'")"
+echo "reports left unprocessed: $(psql "$db" "select count(*) from reports where processing = 'received'")"

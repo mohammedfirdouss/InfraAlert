@@ -17,13 +17,14 @@ echo ""
 echo "==> Setting up Application Default Credentials …"
 gcloud auth application-default login
 
-TARGET_PROJECT="${PROJECT_ID:-your-project-id}"
+# PROJECT is the name the Makefile and docs/deploy.md use; PROJECT_ID still works.
+TARGET_PROJECT="${PROJECT:-${PROJECT_ID:-your-project-id}}"
 
 if [[ "$TARGET_PROJECT" == "your-project-id" ]]; then
     echo ""
-    echo "WARNING: PROJECT_ID is not set in the environment."
+    echo "WARNING: PROJECT is not set in the environment."
     echo "Skipping 'gcloud config set project'."
-    echo "Set PROJECT_ID before running this script, or run:"
+    echo "Set PROJECT before running this script, or run:"
     echo "  gcloud config set project <your-actual-project-id>"
 else
     echo ""
