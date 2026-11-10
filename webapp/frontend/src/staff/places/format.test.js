@@ -13,6 +13,7 @@ import {
 describe('labels', () => {
   it('names categories and weights', () => {
     expect(categoryLabel('fire_station')).toBe('Fire station')
+    expect(categoryLabel('police')).toBe('Police station')
     expect(formatWeight(1)).toBe('×1.0')
     expect(formatWeight(0.9)).toBe('×0.9')
     expect(formatWeight(0.85)).toBe('×0.85')
@@ -20,9 +21,24 @@ describe('labels', () => {
 
   it('gives unknown categories stable spare colours', () => {
     const ids = ['hospital', 'bus_stop', 'library']
-    expect(categoryColour('hospital', ids)).toBe('#ff5a1f')
+    expect(categoryColour('hospital', ids)).toBe('#8b2fc9')
     expect(categoryColour('bus_stop', ids)).not.toBe(categoryColour('library', ids))
     expect(categoryColour('bus_stop', ids)).toBe(categoryColour('bus_stop', ids))
+  })
+})
+
+describe('category colours', () => {
+  const known = ['hospital', 'clinic', 'school', 'fire_station', 'police', 'major_road', 'market']
+  const ids = [...known, 'bus_stop', 'library', 'depot', 'bridge', 'stadium']
+
+  it('keeps hazard orange and red for danger (DESIGN.md)', () => {
+    const hazard = ['#fff1ea', '#ffdccb', '#ff5a1f', '#e5480f', '#b8380a']
+    for (const id of ids) expect(hazard).not.toContain(categoryColour(id, ids))
+  })
+
+  it('gives every known category, and the spares, its own colour', () => {
+    const colours = ids.map((id) => categoryColour(id, ids))
+    expect(new Set(colours).size).toBe(ids.length)
   })
 })
 

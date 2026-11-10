@@ -5,21 +5,20 @@
  * OpenStreetMap places are read-only here: their name, category and shape come
  * from the monthly import (ADR 0004). Staff can only disable them, from the list.
  */
-import { useEffect, useId, useRef, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { Info, Loader2, X } from 'lucide-react'
 import { createPlace, updatePlace } from '../api.js'
 import BaseLocationPicker from '../admin/BaseLocationPicker.jsx'
-import { InlineError, describeError } from '../admin/feedback.jsx'
+import { InlineError } from '../admin/feedback.jsx'
+import { describeError } from '../ui.jsx'
+import { useFocusTrap } from '../useFocusTrap.js'
 import { SHAPE_LABELS, categoryLabel, categoryOptionLabel, pointOf } from './format.js'
 import { CategoryTag, SourceTag } from './PlaceRow.jsx'
 
 const NAME_MAX = 200
-const FOCUSABLE =
-  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
 const ERROR_MESSAGES = {
   place_not_found: 'This place no longer exists. Reload the page.',
-  unknown_category: 'That category is not recognised. Reload the page and try again.',
   osm_place_read_only: 'Places from OpenStreetMap can only be enabled or disabled.',
 }
 
@@ -57,38 +56,19 @@ export default function PlacePanel({ place, categories, colourOf, onClose, onSav
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
 
-  useEffect(() => {
-    const opener = document.activeElement
-    firstRef.current?.focus()
-    return () => {
-      if (opener instanceof HTMLElement) opener.focus()
-    }
-  }, [])
+  // Focus starts on the name (or Close, for a read-only place); Escape closes (not mid-save).
+  const handleKeyDown = useFocusTrap(panelRef, {
+    initialFocus: firstRef,
+    onEscape: (event) => {
+      if (saving) return
+      event.stopPropagation()
+      onClose()
+    },
+  })
 
   function set(field, value) {
     setForm((f) => ({ ...f, [field]: value }))
     if (errors[field]) setErrors((e) => ({ ...e, [field]: undefined }))
-  }
-
-  /** Escape closes; Tab stays inside the drawer while it's open. */
-  function handleKeyDown(event) {
-    if (event.key === 'Escape' && !saving) {
-      event.stopPropagation()
-      onClose()
-      return
-    }
-    if (event.key !== 'Tab') return
-    const items = [...panelRef.current.querySelectorAll(FOCUSABLE)]
-    if (!items.length) return
-    const first = items[0]
-    const last = items[items.length - 1]
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault()
-      last.focus()
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault()
-      first.focus()
-    }
   }
 
   /** Only what changed (the API is a partial update). */
@@ -232,6 +212,7 @@ export default function PlacePanel({ place, categories, colourOf, onClose, onSav
                     onChange={(point) => set('location', point)}
                     invalid={Boolean(errors.location)}
                     describedBy={err('location')}
+                    noun="location"
                   />
                 </div>
                 <InlineError id={err('location')}>{errors.location}</InlineError>

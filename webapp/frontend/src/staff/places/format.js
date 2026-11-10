@@ -7,8 +7,14 @@
 /** @typedef {import('../api.js').Place} Place */
 /** @typedef {import('../api.js').PlaceCategory} PlaceCategory */
 
-/** "fire_station" → "Fire station" */
+/** Categories whose name isn't just their id in words. */
+const CATEGORY_LABELS = {
+  police: 'Police station',
+}
+
+/** "fire_station" → "Fire station", "police" → "Police station" */
 export function categoryLabel(id) {
+  if (CATEGORY_LABELS[id]) return CATEGORY_LABELS[id]
   const words = String(id ?? '')
     .replace(/_/g, ' ')
     .trim()
@@ -26,18 +32,21 @@ export function formatWeight(weight) {
 export const categoryOptionLabel = (category) => `${categoryLabel(category.id)} ${formatWeight(category.weight)}`
 
 /**
- * Category colours from the design tokens: the most sensitive in the hot
- * colours, roads in asphalt. Unknown categories cycle through the rest.
+ * Category colours, for the map and the category tags. Design tokens where
+ * one fits; the map needs more hues than the interface palette has, so the
+ * rest are map-only colours that exist nowhere else. Never hazard orange or
+ * red: those mean danger (DESIGN.md). Unknown categories cycle through the spares.
  */
 const KNOWN_COLOURS = {
-  hospital: '#ff5a1f', // hazard-500
-  clinic: '#b8380a', // hazard-700
+  hospital: '#8b2fc9', // map-only violet
+  clinic: '#d99bf0', // map-only lilac (health, like the hospital, but lighter)
   school: '#ffd60a', // signal-400
-  fire_station: '#e5480f', // hazard-600
-  police: '#2f5bff', // survey-500
+  fire_station: '#0fa3b1', // map-only teal
+  police: '#2f5bff', // map-only blue
   major_road: '#3d424b', // asphalt-600
   market: '#22a35a', // go-500
 }
+// map-only dark blue, go-700, signal-600, asphalt-400, concrete-400
 const SPARE_COLOURS = ['#1f45e0', '#136b3a', '#c79f00', '#7b818b', '#b5ad9b']
 
 /** @param {string} category @param {string[]} [allCategories] the page's category ids, for stable spare colours */
