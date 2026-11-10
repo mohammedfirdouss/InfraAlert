@@ -1,9 +1,10 @@
 /**
- * InfraAlert citizen API client. Mirrors webapp/backend/infraalert/citizen/api.py.
- * Base URL defaults to same origin; VITE_API_URL overrides it for cross-origin dev.
+ * InfraAlert citizen API client. Mirrors webapp/backend/infraalert/citizen/api.py
+ * (uploads, reports) and notify/api.py (email updates).
  */
 
-const BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+/** The API is always same-origin: the app is served by the backend (the dev server proxies it). */
+export const BASE_URL = '/api'
 
 /** An API error. `detail` is the backend's machine-readable code when it sends one. */
 export class ApiError extends Error {
@@ -65,7 +66,7 @@ export const MAX_PHOTOS_PER_REPORT = 3
  * @returns {Promise<UploadTarget>}
  */
 export function requestUpload(contentType) {
-  return request('/api/uploads', {
+  return request('/uploads', {
     method: 'POST',
     body: JSON.stringify({ content_type: contentType }),
   })
@@ -115,7 +116,7 @@ export function uploadPhoto(target, file, onProgress, signal) {
  * @returns {Promise<{ report_id: string, status: ReportStatus }>}
  */
 export function submitReport(body) {
-  return request('/api/reports', { method: 'POST', body: JSON.stringify(body) })
+  return request('/reports', { method: 'POST', body: JSON.stringify(body) })
 }
 
 /**
@@ -124,7 +125,7 @@ export function submitReport(body) {
  * @returns {Promise<Report>}
  */
 export function getReport(reportId) {
-  return request(`/api/reports/${encodeURIComponent(reportId)}`)
+  return request(`/reports/${encodeURIComponent(reportId)}`)
 }
 
 // Email updates (ADR 0007). Addresses are only used after the citizen confirms them.
@@ -134,13 +135,14 @@ export function getReport(reportId) {
  * the address was already subscribed (it never reveals that). A verification
  * email with a link to /reports/:id/verify#token=… is sent.
  * Rejects ApiError: 400 'captcha_failed', 404 'report_not_found', 422 invalid email,
- * 429 'rate_limited'.
+ * 429 'rate_limited', 503 'email_disabled' (email updates are switched off) or
+ * 'email_unavailable' (the email service couldn't be reached).
  * @param {string} reportId
  * @param {{ email: string, captcha_token: string }} body
  * @returns {Promise<{ status: 'verification_sent' }>}
  */
 export function subscribeToUpdates(reportId, body) {
-  return request(`/api/reports/${encodeURIComponent(reportId)}/subscribe`, {
+  return request(`/reports/${encodeURIComponent(reportId)}/subscribe`, {
     method: 'POST',
     body: JSON.stringify(body),
   })
@@ -154,7 +156,7 @@ export function subscribeToUpdates(reportId, body) {
  * @returns {Promise<{ status: 'subscribed', email_masked: string }>}  e.g. "a•••@gmail.com"
  */
 export function verifyUpdates(reportId, token) {
-  return request(`/api/reports/${encodeURIComponent(reportId)}/verify`, {
+  return request(`/reports/${encodeURIComponent(reportId)}/verify`, {
     method: 'POST',
     body: JSON.stringify({ token }),
   })
@@ -167,5 +169,5 @@ export function verifyUpdates(reportId, token) {
  * @returns {Promise<{ status: 'unsubscribed' }>}
  */
 export function unsubscribe(token) {
-  return request('/api/unsubscribe', { method: 'POST', body: JSON.stringify({ token }) })
+  return request('/unsubscribe', { method: 'POST', body: JSON.stringify({ token }) })
 }

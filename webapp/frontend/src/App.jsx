@@ -2,13 +2,43 @@ import { lazy, Suspense } from 'react'
 import { Link, Route, Routes } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
 import { LogoMark } from './components/Logo.jsx'
-import ReportForm from './pages/ReportForm.jsx'
-import ReportStatusPage from './pages/ReportStatusPage.jsx'
 import Unsubscribe from './pages/Unsubscribe.jsx'
 import VerifyUpdates from './pages/VerifyUpdates.jsx'
 
 // Loaded on demand: citizens never download the staff app or its sign-in SDK.
 const StaffApp = lazy(() => import('./staff/StaffApp.jsx'))
+
+// The two pages with a map are their own chunks, so the email-link pages and the
+// 404 don't download Leaflet. Their download starts as soon as this module runs
+// on one of their URLs, without waiting for React to render the route.
+const loadReportForm = () => import('./pages/ReportForm.jsx')
+const loadReportStatusPage = () => import('./pages/ReportStatusPage.jsx')
+const ReportForm = lazy(loadReportForm)
+const ReportStatusPage = lazy(loadReportStatusPage)
+if (typeof window !== 'undefined') {
+  const { pathname } = window.location
+  if (pathname === '/') loadReportForm()
+  else if (/^\/reports\/[^/]+\/?$/.test(pathname)) loadReportStatusPage()
+}
+
+/**
+ * Shown while a map page's chunk loads. It fills the screen below the header,
+ * so the footer doesn't appear and then jump down when the page arrives.
+ */
+function PageLoading() {
+  return (
+    <div className="mx-auto min-h-screen max-w-2xl px-4 py-8 sm:py-10" aria-busy="true">
+      <span className="sr-only" role="status">
+        Loading…
+      </span>
+      <div className="animate-pulse space-y-3" aria-hidden="true">
+        <div className="h-5 w-28 rounded bg-concrete-200" />
+        <div className="h-10 w-56 rounded bg-concrete-200" />
+        <div className="h-4 w-full max-w-md rounded bg-concrete-200" />
+      </div>
+    </div>
+  )
+}
 
 function NotFound() {
   return (
@@ -30,7 +60,7 @@ export default function App() {
       <Route
         path="/staff/*"
         element={
-          <Suspense fallback={<div className="min-h-screen bg-asphalt-900" aria-busy="true" />}>
+          <Suspense fallback={<div className="min-h-screen bg-concrete-50" aria-busy="true" />}>
             <StaffApp />
           </Suspense>
         }
@@ -44,7 +74,7 @@ export default function App() {
 function CitizenApp() {
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="bg-ink text-white">
+      <header className="on-dark bg-ink text-white">
         <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-4">
           <Link to="/" className="flex items-center gap-2.5" aria-label="InfraAlert home">
             <LogoMark className="h-9 w-9" />
@@ -60,13 +90,15 @@ function CitizenApp() {
       </header>
 
       <main className="flex-1">
-        <Routes>
-          <Route path="/" element={<ReportForm />} />
-          <Route path="/reports/:id" element={<ReportStatusPage />} />
-          <Route path="/reports/:id/verify" element={<VerifyUpdates />} />
-          <Route path="/unsubscribe" element={<Unsubscribe />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <Suspense fallback={<PageLoading />}>
+          <Routes>
+            <Route path="/" element={<ReportForm />} />
+            <Route path="/reports/:id" element={<ReportStatusPage />} />
+            <Route path="/reports/:id/verify" element={<VerifyUpdates />} />
+            <Route path="/unsubscribe" element={<Unsubscribe />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
       </main>
 
       <footer className="mt-12 border-t-4 border-ink bg-ink text-asphalt-400">
