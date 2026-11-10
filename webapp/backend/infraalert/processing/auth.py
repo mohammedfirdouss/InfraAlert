@@ -8,8 +8,9 @@ from __future__ import annotations
 import logging
 from typing import Protocol
 
-from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
+
+from infraalert.google_certs import CachingRequest
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ class TaskCallerVerifier(Protocol):
 class GoogleOidcVerifier:
     def __init__(self, service_account: str) -> None:
         self._service_account = service_account
-        self._request = google_requests.Request()
+        self._request = CachingRequest()
 
     def verify(self, token: str, audience: str) -> bool:
         try:

@@ -18,12 +18,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from infraalert.db.models import Assignment, AuditLog, IssueType, Staff, StaffRole, Team
-from infraalert.deps import get_session
+from infraalert.deps import SessionDep
+from infraalert.geo import Location, point_ewkt
+from infraalert.processing.worker import lock_dispatch, refresh_suggested_teams
 from infraalert.staff.auth import ROLE_RANK, Admin, Dispatcher, Supervisor, current_staff
 
 router = APIRouter(prefix="/api/staff", tags=["staff-admin"])
 
-SessionDep = Annotated[Session, Depends(get_session)]
 AnyStaff = Annotated[Staff, Depends(current_staff)]
 
 # Deliberately loose: the identity provider is the real check on an address.
@@ -31,11 +32,6 @@ _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 # Models
-
-
-class Location(BaseModel):
-    lat: float = Field(ge=-90, le=90)
-    lng: float = Field(ge=-180, le=180)
 
 
 class TeamCreate(BaseModel):
@@ -154,10 +150,6 @@ def _team_rows(session: Session, team_id: uuid.UUID | None = None) -> list[TeamR
     ]
 
 
-def _wkt(location: Location) -> str:
-    return f"SRID=4326;POINT({location.lng} {location.lat})"
-
-
 def _name_taken(session: Session, name: str, excluding: uuid.UUID | None = None) -> bool:
     query = select(Team.id).where(func.lower(Team.name) == name.lower())
     if excluding is not None:
@@ -195,17 +187,19 @@ def list_teams(_: Dispatcher, session: SessionDep) -> list[TeamResponse]:
 
 @router.post("/teams", status_code=201)
 def create_team(body: TeamCreate, actor: Supervisor, session: SessionDep) -> TeamResponse:
+    lock_dispatch(session)
     if _name_taken(session, body.name):
         raise HTTPException(409, detail="team_name_taken")
     team = Team(
         id=uuid.uuid4(),
         name=body.name,
         skills=body.skills,
-        base_location=_wkt(body.base_location),
+        base_location=point_ewkt(body.base_location.lat, body.base_location.lng),
         active=body.active,
     )
     session.add(team)
     _audit(session, actor, "team.created", "team", team.id, body.model_dump(mode="json"))
+    refresh_suggested_teams(session)  # a new team may be the nearest for waiting incidents
     _commit_or_conflict(session, "team_name_taken")
     return _team_rows(session, team.id)[0]
 
@@ -214,6 +208,7 @@ def create_team(body: TeamCreate, actor: Supervisor, session: SessionDep) -> Tea
 def update_team(
     team_id: uuid.UUID, body: TeamPatch, actor: Supervisor, session: SessionDep
 ) -> TeamUpdateResponse:
+    lock_dispatch(session)
     team = session.get(Team, team_id, with_for_update=True)
     if team is None:
         raise HTTPException(404, detail="team_not_found")
@@ -232,12 +227,14 @@ def update_team(
     if body.skills is not None and "skills" in changed:
         team.skills = body.skills
     if body.base_location is not None and "base_location" in changed:
-        team.base_location = _wkt(body.base_location)
+        team.base_location = point_ewkt(body.base_location.lat, body.base_location.lng)
     if body.active is not None and "active" in changed:
         team.active = body.active
 
     if changed:
         _audit(session, actor, "team.updated", "team", team_id, changed)
+        if changed.keys() - {"name"}:
+            refresh_suggested_teams(session)  # skills, base or active decide who is suggested
         _commit_or_conflict(session, "team_name_taken")
 
     after = _team_rows(session, team_id)[0]

@@ -18,16 +18,19 @@ import uuid
 from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import any_, exists, func, select, update
 from sqlalchemy.orm import Session, sessionmaker
 
 from infraalert.db.models import (
+    OPEN_STATUSES,
+    Assignment,
     AuditLog,
     Incident,
     IncidentStatus,
     IssueType,
     Report,
     ReportProcessing,
+    Team,
 )
 from infraalert.processing.extraction import (
     Extraction,
@@ -53,12 +56,6 @@ MIN_CONFIDENCE = 0.6
 # Model outages are retried by the queue this many times before triage.
 MAX_EXTRACTION_ATTEMPTS = 3
 
-OPEN_STATUSES = (
-    IncidentStatus.NEW,
-    IncidentStatus.TRIAGED,
-    IncidentStatus.ASSIGNED,
-    IncidentStatus.ON_SITE,
-)
 # Once a dispatcher has assigned a team, the system stops re-suggesting one.
 SUGGESTABLE_STATUSES = (IncidentStatus.NEW, IncidentStatus.TRIAGED)
 
@@ -96,6 +93,28 @@ class Processor:
 
         with self.sessions() as session, session.begin():
             return self._record(session, report_id, claimed, extraction, failure)
+
+    def give_up(self, report_id: uuid.UUID, reason: str) -> Outcome:
+        """
+        Send a report that keeps failing to process to human triage, without the
+        model, so it can't sit in `received` (and be re-enqueued) forever.
+        """
+        with self.sessions() as session:
+            report = session.get(Report, report_id)
+            if report is None:
+                return Outcome.NOT_FOUND
+            if report.processing is not ReportProcessing.RECEIVED:
+                return Outcome.ALREADY_DONE
+            photos = [(p.id, p.object_name, p.content_type) for p in report.photos]
+        claimed: dict[uuid.UUID, tuple[str, str] | None]
+        try:
+            claimed = self._claim_photos(report_id, photos)
+        except Exception:
+            # Storage may be what keeps failing: keep the photos as they are.
+            logger.exception("Could not claim photos while giving up on report %s", report_id)
+            claimed = {photo_id: (name, content_type) for photo_id, name, content_type in photos}
+        with self.sessions() as session, session.begin():
+            return self._record(session, report_id, claimed, None, reason)
 
     # Slow, external steps
 
@@ -256,3 +275,65 @@ def rescore(session: Session, incident: Incident) -> None:
     incident.priority_inputs = priority.inputs
     if incident.status in SUGGESTABLE_STATUSES:
         incident.suggested_team_id = suggest_team(session, incident.id)
+
+
+# Keeping the other open incidents current
+
+
+def lock_dispatch(session: Session) -> None:
+    """
+    Serialise, until the transaction ends, everything that changes which teams are
+    free or how incidents score: dispatch actions, team and sensitive-place edits,
+    the OSM import. Each of them updates other incidents' suggestions or scores, so
+    two running at once could deadlock on each other's rows. Take it first.
+    """
+    session.execute(select(func.pg_advisory_xact_lock(func.hashtext("dispatch"))))
+
+
+def refresh_suggested_teams(session: Session) -> None:
+    """
+    Re-suggest a team for every incident still waiting for one (same rule as
+    priority.suggest_team). Call after a team is taken, freed or edited: otherwise
+    the queue keeps suggesting a team that has just gone to another job.
+    """
+    open_assignment = exists().where(Assignment.team_id == Team.id, Assignment.ended_at.is_(None))
+    best = (
+        select(Team.id)
+        .where(
+            Team.active.is_(True),
+            ~open_assignment,
+            Incident.issue_type == any_(Team.skills),
+        )
+        .order_by(func.ST_Distance(Team.base_location, Incident.location), Team.name)
+        .limit(1)
+        .correlate(Incident)
+        .scalar_subquery()
+    )
+    session.flush()
+    session.execute(
+        update(Incident)
+        .where(
+            Incident.status.in_(SUGGESTABLE_STATUSES),
+            Incident.issue_type.is_not(None),
+            Incident.suggested_team_id.is_distinct_from(best),
+        )
+        .values(suggested_team_id=best)
+        .execution_options(synchronize_session=False)
+    )
+    for loaded in session.identity_map.values():
+        if isinstance(loaded, Incident):
+            session.expire(loaded, ["suggested_team_id", "updated_at"])
+
+
+def rescore_open_incidents(session: Session) -> int:
+    """
+    Recompute priority (and suggestion) for every open, classified incident. Call
+    after sensitive places change. Returns how many were looked at.
+    """
+    incidents = session.scalars(
+        select(Incident).where(Incident.status.in_(OPEN_STATUSES), Incident.issue_type.is_not(None))
+    ).all()
+    for incident in incidents:
+        rescore(session, incident)
+    session.flush()
+    return len(incidents)

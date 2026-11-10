@@ -1,4 +1,9 @@
-"""Endpoints for Cloud Tasks (processing) and Cloud Scheduler (the sweep)."""
+"""
+Endpoints for Cloud Tasks (processing) and Cloud Scheduler (the sweep).
+
+The sweep re-enqueues reports whose task was lost, and sends reports that are
+still unprocessed after GIVE_UP_AFTER to human triage.
+"""
 
 from __future__ import annotations
 
@@ -12,7 +17,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 
 from infraalert.db.models import Report, ReportProcessing
-from infraalert.deps import Deps, get_deps
+from infraalert.deps import DepsDep
 from infraalert.processing.worker import Outcome, RetryLater
 
 logger = logging.getLogger(__name__)
@@ -22,8 +27,9 @@ router = APIRouter(prefix="/tasks", include_in_schema=False)
 # A report still `received` after this long missed its task (e.g. enqueue failed).
 SWEEP_AFTER = timedelta(minutes=5)
 SWEEP_BATCH = 100
-
-DepsDep = Annotated[Deps, Depends(get_deps)]
+# A report still `received` after this long has used up its task's retries and
+# several sweeps: something about it keeps failing, so a person takes it.
+GIVE_UP_AFTER = timedelta(hours=1)
 
 
 def require_task_caller(request: Request, deps: DepsDep) -> None:
@@ -49,6 +55,7 @@ class ProcessReportResponse(BaseModel):
 
 class SweepResponse(BaseModel):
     enqueued: int
+    gave_up: int
 
 
 @router.post("/process-report")
@@ -71,8 +78,8 @@ def process_report(
 @router.post("/sweep")
 def sweep(deps: DepsDep, _caller: CallerDep) -> SweepResponse:
     with deps.sessions() as session:
-        stuck = session.scalars(
-            select(Report.id)
+        stuck = session.execute(
+            select(Report.id, Report.submitted_at < func.now() - GIVE_UP_AFTER)
             .where(
                 Report.processing == ReportProcessing.RECEIVED,
                 Report.submitted_at < func.now() - SWEEP_AFTER,
@@ -80,8 +87,20 @@ def sweep(deps: DepsDep, _caller: CallerDep) -> SweepResponse:
             .order_by(Report.submitted_at)
             .limit(SWEEP_BATCH)
         ).all()
-    for report_id in stuck:
-        deps.tasks.enqueue_report_processing(report_id)
-    if stuck:
-        logger.warning("Sweep re-enqueued %d stuck report(s)", len(stuck))
-    return SweepResponse(enqueued=len(stuck))
+    assert deps.processor
+    enqueued = gave_up = 0
+    for report_id, hopeless in stuck:
+        if not hopeless:
+            deps.tasks.enqueue_report_processing(report_id)
+            enqueued += 1
+            continue
+        try:
+            deps.processor.give_up(report_id, "gave up: processing kept failing")
+            gave_up += 1
+        except Exception:
+            logger.exception("Sweep could not send report %s to triage", report_id)
+    if enqueued:
+        logger.warning("Sweep re-enqueued %d stuck report(s)", enqueued)
+    if gave_up:
+        logger.error("Sweep sent %d report(s) that kept failing to triage", gave_up)
+    return SweepResponse(enqueued=enqueued, gave_up=gave_up)

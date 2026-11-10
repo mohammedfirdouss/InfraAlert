@@ -8,15 +8,13 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from infraalert.deps import Deps, get_deps
+from infraalert.deps import DepsDep
 from infraalert.places.osm import ImportRefused, OverpassClient, OverpassError, import_osm
 from infraalert.processing.api import CallerDep
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/tasks", include_in_schema=False)
-
-DepsDep = Annotated[Deps, Depends(get_deps)]
 
 
 def get_overpass(deps: DepsDep) -> OverpassClient:
