@@ -14,7 +14,6 @@ stressed. High contrast, big targets, plain words.
 | `signal-*` (hi-vis yellow) | The primary action, current step, pin, highlights. Always with **ink text**, never white |
 | `hazard-*` (safety orange) | Danger and errors only: emergency panel, field errors, failed uploads |
 | `go-*` (green) | Success only: resolved, uploaded, sent |
-| `survey-*` (blue) | Rare: links inside body text |
 
 Fonts: **Overpass** (from Highway Gothic, used on road signs) for everything, 800–900
 for headlines; **Overpass Mono** for coordinates, reference numbers, section numbers
@@ -38,7 +37,11 @@ and counts. Both are self-hosted (no third-party font requests).
 
 - Hierarchy through weight and size, not colour: one yellow action per view.
 - Orange means danger. Never use it decoratively.
-- Minimum 44px touch targets. Focus is a 3px ink outline, visible even on yellow.
+- Minimum 44px touch targets. Focus is a 3px ink outline, visible even on yellow. On dark
+  surfaces (the header, the staff sidebar and menu, the photo viewer) ink would vanish, so the
+  container carries `.on-dark` and focus inside it is a `signal-400` outline instead. Put
+  `.on-dark` on any new `bg-ink` container that holds links or buttons, and only on the dark
+  part: a white card inside a dark page keeps the ink outline.
 - Motion is short and purposeful (`animate-rise-in` for newly shown content, `animate-beacon` for
   the live/current state) and is disabled under `prefers-reduced-motion`.
 - Words: plain, calm, second person. Say what happens next. No internal terms
@@ -59,11 +62,14 @@ different density:
 - **Machine hints are labelled as such**: anything that came from extraction (type, flags,
   summary, confidence) is marked "Suggested by the system" with a dashed border, so staff
   know what to verify (ADR 0004). Human decisions are solid.
-- **Shared pieces** live in src/staff/ui.jsx (`ISSUE_TYPES`, `IssueTypeLabel`, `SeverityBadge`,
-  `StatusPill`, `HazardFlags`, `formatAge`, `formatDateTime`, `formatDistance`, `hasRole`).
+- **Shared pieces** live in src/staff/ui.jsx (`ISSUE_TYPES`, `IssueTypeLabel`, `issueTypeLabel`,
+  `SeverityBadge`, `StatusPill`, `HazardFlags`, `Switch`, `incidentRef`, `reportCount`, `formatAge`,
+  `formatDateTime`, `formatDistance`, `describeError`, `hasRole`); dialogs and drawers use
+  `useFocusTrap` from src/staff/useFocusTrap.js.
   Use them rather than restyling these per page.
 - **Maps**: incident pins are severity-coloured circles (CRITICAL orange, HIGH yellow, MEDIUM
   white, LOW concrete) with an ink border; the selected one gets a thicker ring. Use `tileLayer`
-  from src/map.js.
+  from src/map.js. Sensitive-place categories have their own colours in src/staff/places/format.js
+  (tokens where one fits, otherwise map-only hues); none of them is hazard orange or red.
 - **Actions** are sign plates. Destructive or irreversible ones (close, merge, split) ask for
   confirmation inline (never `window.confirm`) and say exactly what will happen.

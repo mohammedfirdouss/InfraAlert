@@ -95,12 +95,19 @@ class FakeBlob:
             raise NotFound(self.name)
         del self.bucket.objects[self.name]
 
+    def generate_signed_url(self, **kwargs: Any) -> str:
+        self.bucket.signed += 1
+        return (
+            f"https://storage.test/{self.name}?sig={self.bucket.signed}&method={kwargs['method']}"
+        )
+
 
 class FakeBucket:
     def __init__(self, name: str) -> None:
         self.name = name
         self.objects: dict[str, bytes] = {}
         self.copies = 0
+        self.signed = 0
 
     def blob(self, name: str) -> FakeBlob:
         return FakeBlob(self, name)
@@ -226,3 +233,63 @@ def test_gcs_photo_ref_is_a_gs_uri(gcs: GcsPhotoStorage) -> None:
     assert gcs.photo_ref(CLAIMED, "image/jpeg") == PhotoRef(
         "image/jpeg", gcs_uri=f"gs://photos/{CLAIMED}"
     )
+
+
+def test_local_delete_is_idempotent(local: LocalPhotoStorage) -> None:
+    local.save(CLAIMED, b"jpeg")
+    local.delete(CLAIMED)
+    local.delete(CLAIMED)
+    assert not (local.directory / CLAIMED).exists()
+    with pytest.raises(ValueError):
+        local.delete("../outside.jpg")
+
+
+def test_gcs_delete_is_idempotent(gcs: GcsPhotoStorage, bucket: FakeBucket) -> None:
+    bucket.objects[CLAIMED] = b"jpeg"
+    gcs.delete(CLAIMED)
+    gcs.delete(CLAIMED)
+    assert bucket.objects == {}
+
+
+class FakeCredentials:
+    service_account_email = "svc@p.iam.gserviceaccount.com"
+
+    def __init__(self) -> None:
+        self.token: str | None = None
+        self.refreshes = 0
+
+    @property
+    def valid(self) -> bool:
+        return self.token is not None
+
+    def refresh(self, request: Any) -> None:
+        self.refreshes += 1
+        self.token = f"token-{self.refreshes}"
+
+
+def test_gcs_reuses_credentials_and_recent_view_urls(
+    gcs: GcsPhotoStorage, bucket: FakeBucket, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import google.auth
+
+    from infraalert import storage as storage_module
+
+    credentials = FakeCredentials()
+    monkeypatch.setattr(google.auth, "default", lambda: (credentials, "p"))
+
+    first = gcs.view_url(CLAIMED)
+    assert gcs.view_url(CLAIMED) == first  # signed moments ago: reused
+    other = gcs.view_url(CLAIMED.replace("a", "b"))
+    assert other != first
+    assert (bucket.signed, credentials.refreshes) == (2, 1)
+
+    # Upload URLs are never reused, and an expired token is refreshed.
+    credentials.token = None
+    assert (
+        gcs.upload_target(UPLOAD, "image/jpeg").url != gcs.upload_target(UPLOAD, "image/jpeg").url
+    )
+    assert credentials.refreshes == 2
+
+    # Once a view URL is no longer fresh, it is signed again.
+    monkeypatch.setattr(storage_module, "VIEW_URL_REUSE", storage_module.timedelta(0))
+    assert gcs.view_url(CLAIMED) != first
