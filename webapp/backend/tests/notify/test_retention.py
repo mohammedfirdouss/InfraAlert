@@ -185,7 +185,7 @@ def photo(
 def test_photos_are_deleted_90_days_after_the_incident_closed(
     session: Session, tmp_path: Path
 ) -> None:
-    storage = LocalPhotoStorage(tmp_path, "http://localhost:8000")
+    storage = LocalPhotoStorage(tmp_path)
     old = photo(
         session, storage, report(session, status=IncidentStatus.RESOLVED, closed_ago=91 * DAY)
     )
@@ -212,7 +212,7 @@ def test_photos_are_deleted_90_days_after_the_incident_closed(
 def test_a_photo_whose_file_cannot_be_deleted_is_kept_for_the_next_run(
     session: Session, tmp_path: Path
 ) -> None:
-    storage = LocalPhotoStorage(tmp_path, "http://localhost:8000")
+    storage = LocalPhotoStorage(tmp_path)
     photo_id, _ = photo(
         session, storage, report(session, status=IncidentStatus.RESOLVED, closed_ago=91 * DAY)
     )
@@ -221,5 +221,5 @@ def test_a_photo_whose_file_cannot_be_deleted_is_kept_for_the_next_run(
         def delete(self, object_name: str) -> None:
             raise OSError("storage unavailable")
 
-    assert run_retention(session, Broken(tmp_path, "http://localhost:8000")).photos_deleted == 0
+    assert run_retention(session, Broken(tmp_path)).photos_deleted == 0
     assert exists(session, ReportPhoto, photo_id)

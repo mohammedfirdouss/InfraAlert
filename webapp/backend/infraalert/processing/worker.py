@@ -106,13 +106,17 @@ class Processor:
             if report.processing is not ReportProcessing.RECEIVED:
                 return Outcome.ALREADY_DONE
             photos = [(p.id, p.object_name, p.content_type) for p in report.photos]
-        claimed: dict[uuid.UUID, tuple[str, str] | None]
-        try:
-            claimed = self._claim_photos(report_id, photos)
-        except Exception:
-            # Storage may be what keeps failing: keep the photos as they are.
-            logger.exception("Could not claim photos while giving up on report %s", report_id)
-            claimed = {photo_id: (name, content_type) for photo_id, name, content_type in photos}
+        claimed: dict[uuid.UUID, tuple[str, str] | None] = {}
+        for photo in photos:
+            # One at a time: storage may be what keeps failing, and a photo that
+            # was moved must be recorded under its new name whatever happens to
+            # the others. One that can't be claimed keeps its row as it is.
+            try:
+                claimed.update(self._claim_photos(report_id, [photo]))
+            except Exception:
+                photo_id, name, content_type = photo
+                logger.exception("Could not claim photo %s while giving up on its report", photo_id)
+                claimed[photo_id] = (name, content_type)
         with self.sessions() as session, session.begin():
             return self._record(session, report_id, claimed, None, reason)
 
@@ -183,6 +187,9 @@ class Processor:
         matched = False
         if confident:
             assert extraction is not None
+            # Before touching any incident: the suggestion computed below must not
+            # race a dispatcher taking that team (see lock_dispatch).
+            lock_dispatch(session)
             incident = _match_incident(session, report.id, extraction.issue_type)
             matched = incident is not None
             if incident is None:

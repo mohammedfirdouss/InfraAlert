@@ -20,7 +20,7 @@ from pathlib import Path
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from infraalert.config import LOCAL_BASE_URL, Settings, _bbox
+from infraalert.config import Settings, _bbox
 from infraalert.db.models import IssueType, PlaceSource, SensitivePlace, Staff, StaffRole, Team
 from infraalert.db.session import make_engine, make_sessionmaker
 from infraalert.geo import point_ewkt
@@ -184,7 +184,7 @@ def _storage_from_env() -> PhotoStorage:
         if not bucket:
             raise RuntimeError("GCS_BUCKET is not set")
         return GcsPhotoStorage(bucket)
-    return LocalPhotoStorage(Path(os.getenv("LOCAL_UPLOAD_DIR", "var/uploads")), LOCAL_BASE_URL)
+    return LocalPhotoStorage(Path(os.getenv("LOCAL_UPLOAD_DIR", "var/uploads")))
 
 
 if __name__ == "__main__":

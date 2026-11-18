@@ -205,16 +205,15 @@ class GcsPhotoStorage:
 class LocalPhotoStorage:
     """Local development only: uploads go to a dev-only endpoint on this app."""
 
-    def __init__(self, directory: Path, public_base_url: str) -> None:
+    def __init__(self, directory: Path) -> None:
         self.directory = directory
-        self._base_url = public_base_url
         # Signs dev view links, like GCS signed URLs; links die with the process.
         self._view_key = secrets.token_bytes(32)
 
     def view_url(self, object_name: str) -> str:
         expires = int(time.time() + VIEW_URL_TTL.total_seconds())
         return (
-            f"{self._base_url}/dev/files/{object_name}"
+            f"/dev/files/{object_name}"
             f"?expires={expires}&signature={self._view_signature(object_name, expires)}"
         )
 
@@ -234,7 +233,9 @@ class LocalPhotoStorage:
     def upload_target(self, object_name: str, content_type: str) -> UploadTarget:
         return UploadTarget(
             object_name=object_name,
-            url=f"{self._base_url}/dev/uploads/{object_name}",
+            # Relative, so it works on whichever origin serves the page (this app, or
+            # the Vite dev server, which proxies /dev).
+            url=f"/dev/uploads/{object_name}",
             headers={"Content-Type": content_type},
         )
 

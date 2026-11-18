@@ -7,6 +7,8 @@
 #     scripts/loadtest/run_steps.sh before
 # Results: var/loadtest/<label>/u<N>_stats.csv and a summary table on stdout.
 set -euo pipefail
+# --env-file doesn't override the shell: never load-test a database exported there.
+unset DATABASE_URL
 cd "$(dirname "$0")/../.."
 label=${1:?label}; shift
 steps=("${@:-200 400 800 1200}")

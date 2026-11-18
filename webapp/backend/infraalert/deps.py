@@ -58,7 +58,7 @@ def build_deps(settings: Settings) -> Deps:
         assert settings.gcs_bucket
         storage = GcsPhotoStorage(settings.gcs_bucket)
     else:
-        storage = LocalPhotoStorage(settings.local_upload_dir, settings.public_base_url)
+        storage = LocalPhotoStorage(settings.local_upload_dir)
 
     extractor: Extractor
     if settings.extractor_backend == "vertex":

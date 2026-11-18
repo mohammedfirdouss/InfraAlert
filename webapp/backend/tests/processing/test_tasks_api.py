@@ -183,3 +183,30 @@ def test_the_inline_queue_resumes_reports_left_unprocessed(
     _resume_unprocessed(sessions, queue)
 
     assert queue.enqueued == [waiting]
+
+
+def test_giving_up_keeps_every_photo_findable_when_storage_fails_part_way(
+    deps: Deps,
+    sessions: sessionmaker[Session],
+    storage: LocalPhotoStorage,
+    submit: Callable[..., uuid.UUID],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    report_id = submit(photos=3)
+    claim, calls = storage.claim, []
+
+    def second_claim_fails(name: str, rid: uuid.UUID) -> str | None:
+        calls.append(name)
+        if len(calls) == 2:
+            raise OSError("storage down")
+        return claim(name, rid)
+
+    monkeypatch.setattr(storage, "claim", second_claim_fails)
+
+    deps.processor.give_up(report_id, "gave up: test")  # type: ignore[union-attr]
+
+    with sessions() as session:
+        names = sorted(p.object_name for p in session.get_one(Report, report_id).photos)
+    # Two were moved and are recorded where they now are; the third stays where it was.
+    assert [n.split("/")[0] for n in names] == ["reports", "reports", "uploads"]
+    assert all((storage.directory / n).is_file() for n in names)

@@ -67,7 +67,7 @@ def test_duplicate_deliveries_process_a_report_once(
     sessions, report_ids = committed
     report_id = _new_report(sessions, HERE)
     report_ids.append(report_id)
-    processor = Processor(sessions, LocalPhotoStorage(tmp_path, ""), BarrierExtractor(2))
+    processor = Processor(sessions, LocalPhotoStorage(tmp_path), BarrierExtractor(2))
 
     outcomes = _run_together(processor, [report_id, report_id])
 
@@ -102,7 +102,7 @@ def test_simultaneous_reports_of_one_problem_share_an_incident(
     monkeypatch.setattr(worker, "_new_incident", gated_new_incident)
     sessions, report_ids = committed
     report_ids += [_new_report(sessions, HERE), _new_report(sessions, NEAR)]
-    processor = Processor(sessions, LocalPhotoStorage(tmp_path, ""), BarrierExtractor(2))
+    processor = Processor(sessions, LocalPhotoStorage(tmp_path), BarrierExtractor(2))
 
     assert _run_together(processor, report_ids) == [Outcome.PROCESSED, Outcome.PROCESSED]
 

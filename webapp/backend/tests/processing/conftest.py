@@ -69,7 +69,7 @@ def sessions(engine: Engine) -> Iterator[sessionmaker[Session]]:
 
 @pytest.fixture()
 def storage(tmp_path: Path) -> LocalPhotoStorage:
-    return LocalPhotoStorage(tmp_path, "http://localhost:8000")
+    return LocalPhotoStorage(tmp_path)
 
 
 @pytest.fixture()

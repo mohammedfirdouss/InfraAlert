@@ -19,7 +19,7 @@ CLAIMED = f"reports/{REPORT_ID}/{'a' * 32}.jpg"
 
 @pytest.fixture
 def local(tmp_path: Path) -> LocalPhotoStorage:
-    return LocalPhotoStorage(tmp_path, "http://localhost:8000")
+    return LocalPhotoStorage(tmp_path)
 
 
 def test_local_claim_moves_the_file(local: LocalPhotoStorage) -> None:

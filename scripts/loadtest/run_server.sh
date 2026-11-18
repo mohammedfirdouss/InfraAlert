@@ -3,6 +3,8 @@
 # Usage: scripts/loadtest/run_server.sh            # plain
 #        PROFILE=1 scripts/loadtest/run_server.sh  # under memray (writes var/memray/)
 set -euo pipefail
+# --env-file doesn't override the shell: never load-test a database exported there.
+unset DATABASE_URL
 cd "$(dirname "$0")/../.."
 ENV_FILE=scripts/loadtest/loadtest.env
 APP=(uvicorn main:app --app-dir webapp/backend --port 8000 --log-level warning)
